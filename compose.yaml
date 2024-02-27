@@ -1,0 +1,79 @@
+# services:
+#   server:
+#     build:
+#       context: .
+#     ports:
+#       - 3000:3000
+#     environment:
+#       NODE_ENV: production
+#       POSTGRES_HOST: db
+#       POSTGRES_USER: postgres
+#       #POSTGRES_PASSWORD_FILE: /run/secrets/db-password
+#       POSTGRES_PASSWORD: 9271
+#       POSTGRES_DB: AppointmentDB
+#     depends_on:
+#       db:
+#         condition: service_healthy
+#     secrets:
+#       - db-password
+#   db:
+#     image: postgres
+#     restart: always
+#     user: postgres
+#     secrets:
+#       - db-password
+#     volumes:
+#       - db-data:/var/lib/postgresql/data
+#     environment:
+#       - POSTGRES_DB=AppointmentDB
+#       - POSTGRES_PASSWORD=9271
+#     expose:
+#       - 5432
+#     healthcheck:
+#       test: [ "CMD", "pg_isready" ]
+#       interval: 10s
+#       timeout: 5s
+#       retries: 5
+# volumes:
+#   db-data:
+# secrets:
+#   db-password:
+#     file: db/password.txt
+services:
+  app:
+    image: node:21-alpine
+    command: sh -c "npm install && node server.js"
+    ports:
+      - 127.0.0.1:3000:3000
+    working_dir: /app
+    volumes:
+      - ./:/app
+    # environment:
+    #   MYSQL_HOST: mysql
+    #   MYSQL_USER: root
+    #   MYSQL_PASSWORD: secret
+    #   MYSQL_DB: todos
+    environment:
+      NODE_ENV: production
+      POSTGRES_HOST: db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 9271
+      POSTGRES_DB: AppointmentDB
+      
+  # mysql:
+  #   image: mysql:8.0
+  #   volumes:
+  #     - todo-mysql-data:/var/lib/mysql
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: secret
+  #     MYSQL_DATABASE: todos
+  postgres:
+    image: postgres:16.2
+    volumes:
+      - postgres-data:/var/lib/postgres
+    environment:
+      POSTGRES_PASSWORD: 9271
+      POSTGRES_DB: AppointmentDB
+
+volumes:
+  postgres-data:
