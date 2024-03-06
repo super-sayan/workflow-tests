@@ -6,7 +6,6 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.css"
     />
-    <!-- <link rel="stylesheet" type="text/css" href="/css/my_styles.css"/> -->
     <link href="/css/my_styles.css" rel="stylesheet"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
@@ -35,10 +34,7 @@
       <li><%= messages.error %></li>
       <% } %>
     </ul>
-    <!-- <h6>Hello <%= user %></h6> -->
-    <!--appointment table-->
     <div id="container">
-      <!--This is a division tag for body container-->
       <div id="body_header">
         <!--This is a division tag for body header-->
         <h1>Appointment Request Form</h1>
@@ -46,8 +42,6 @@
         <h4>Make your appointments more easier</h4>
   
       </div>
-      <!-- form action="/users/login" method="POST" -->
-      <!-- <form action="#" method="post"> -->
       <form action="/users/dashboard" method="post">
         <fieldset>
           <h5>Your basic details:</h5>
@@ -55,28 +49,16 @@
           <input type="text" id="name" name="user_name" value=<%= user %> required pattern="[a-zA-Z0-9]+">
   
           <label for="mail">Email*:</label>
-          <input type="email" id="email" name="user_email" value=<%= email %> required>
-  
-          <!-- <label for="tel">Contact Num:</label>
-          <input type="tel" id="tel" placeholder="Include country code" name="user_num"> -->
-  
-          <!-- <label for="skype_name">Skype username:</label>
-          <input type="text" id="skype_name" name="skype_name" placeholder="@atchyutn" pattern="[a-zA-Z0-9]+"> -->
-  
+          <input type="email" id="email" name="user_email" value=<%= email %> required>  
   
         </fieldset>
   
         <fieldset>
-          <!-- <legend><span class="number">2</span>Appointment Details</legend> -->
           <label for="meal_kind">Appointment for*:</label>
           <select id="meal_kind" name="meal_kind" required>
             <option value="breakfast">Breakfast</option>
             <option value="lunch">Business Lunch</option>
             <option value="dinner">Dinner</option>
-            <!-- <option value="lunch">Lunch</option>
-            <option value="skype">Skype</option>
-            <option value="movie">Movie</option>
-            <option value="couple_date">Date</option> -->
           </select>
           <label for="appointment_remark">Appointment Remark:</label>
           <textarea id="appointment_remark" name="appointment_remark"></textarea>
@@ -84,7 +66,6 @@
           <input type="date" name="date" value="" required></input>
           <br>
           <label for="time">Time*:</label>
-          <!-- <input type="time" name="time" value="" required></input> -->
           <input type="time" id="time" name="time" min="09:00" max="18:00" required />
           <small>Cafe is open from 9am until 6pm.</small>
           <br>
@@ -94,9 +75,7 @@
           <input type="radio" name="duration" value="90"> 90
           <input type="radio" name="duration" value="more"> more -->
         </fieldset>
-        <!-- <button type="submit">Request For Appointment</button> -->
         <input type="submit" value="Request for appointment" />
-        <!-- <a href="/users/summary">Request For Appointment</a> -->
       </form>
     </div>
   </body>

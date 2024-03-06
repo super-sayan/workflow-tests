@@ -1,0 +1,49 @@
+version: '3.8'
+services:
+  postgres_db:
+    image: postgres:16.2
+    restart: unless-stopped
+    volumes:
+      - postgres:/var/lib/postgres
+    ports:
+      - 0.0.0.0:5432:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=9271
+      # - POSTGRES_DB=AppointmentDB
+      - POSTGRES_DB=postgres
+    # healthcheck:
+    #   test: [ "CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}" ]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
+
+  nodejs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nodejs
+    container_name: nodejs
+    restart: unless-stopped
+    env_file: .env
+  # app:
+  #   image: node:21-alpine3.18
+  #   command: sh -c "npm run dev && npm run start"
+    ports:
+      - 127.0.0.1:3000:3000
+    environment:
+      # NODE_ENV: .env
+      POSTGRES_HOST: postgres_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 9271
+      POSTGRES_DB: postgres
+      PGPORT: 5432
+    # depends_on:
+    #   postgres_db:
+    #     condition: service_healthy
+    volumes:
+      - /app/node_modules
+      - ./:/app
+      
+volumes:
+  postgres:
