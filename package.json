@@ -1,0 +1,17 @@
+{
+  "author": "208",
+  "version": "1.0.0",
+  "main": "index.tsx",
+  "license": "ISC",
+  "private": "true",
+  "workspaces": [
+    "packages/*"
+  ],
+  "dependencies": {
+  },
+  "scripts": {
+    "start": "npm run start:server & npm run start:client",
+    "start:server": "cd packages/server && npm start",
+    "start:client": "cd packages/client && npm start"
+  }
+}
