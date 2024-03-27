@@ -1,9 +1,0 @@
-{
-  "name": "@happy-cat/common",
-  "version": "1.0.0",
-  "main": "index.ts",
-  "license": "MIT",
-  "dependencies": {
-    "yup": "^1.4.0"
-  }
-}
