@@ -3,15 +3,13 @@
   "version": "1.0.0",
   "main": "index.tsx",
   "license": "ISC",
-  "private": "true",
-  "workspaces": [
-    "packages/*"
-  ],
+  "private": true,
   "dependencies": {
+    "dotenv": "^16.4.5"
   },
   "scripts": {
     "start": "npm run start:server & npm run start:client",
-    "start:server": "cd packages/server && npm start",
-    "start:client": "cd packages/client && npm start"
+    "start:server": "cd server && npm start",
+    "start:client": "cd client && npm start"
   }
 }
