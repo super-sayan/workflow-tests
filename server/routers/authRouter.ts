@@ -42,11 +42,15 @@ router
     }
   });
 
-router
-  .route("/logout")
-  .get(async (req, res) => {
-      res.json({ loggedIn: false });
+router.route("/logout").get(async (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error("Error destroying session:", err);
+      return res.status(500).json({ message: "Failed to log out" });
+    }
+    res.status(200).json({ message: "Logged out successfully", loggedIn: false });
   });
+});
 
 router.post("/signup", async (req, res) => {
   try {
@@ -61,7 +65,7 @@ router.post("/signup", async (req, res) => {
     const passwordsMatch = req.body.password === req.body.password2;
 
     if (!passwordsMatch) {
-      return res.json({ loggedIn: false, status: "Passwords do not match" }); // Add .status(400)
+      return res.json({ loggedIn: false, status: "Passwords do not match" });
     }
 
     if (existingUser.rowCount === 0) {
@@ -77,7 +81,7 @@ router.post("/signup", async (req, res) => {
       };
       return res.json({ loggedIn: true, email: req.body.email });
     } else {
-      return res.json({ loggedIn: false, status: "Email is taken" }); // Add .status(400)
+      return res.json({ loggedIn: false, status: "Email is taken" });
     }
   } catch (error) {
     console.error("Error in signup route:", error);

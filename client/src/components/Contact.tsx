@@ -1,4 +1,3 @@
-//import React from "react";
 const logo = require('../assets/images/Cat_Phone.png');
 
 function Contact() {
@@ -7,20 +6,19 @@ function Contact() {
       <div className="container">
         <div className="row align-items-center my-5">
           <div className="col-lg-7">
-            {/* <img
-              className="img-fluid rounded mb-4 mb-lg-0"
-              src="http://placehold.it/900x400"
-              alt=""
-            /> */}
             <img alt='logo' style={{ width: 600 }} src={String(logo)} />
           </div>
           <div className="col-lg-5">
             <h1 className="font-weight-dark">Contact</h1>
             <p>
-              Lorem Ipsum is simply dummy text of the printing and typesetting
-              industry. Lorem Ipsum has been the industry's standard dummy text
-              ever since the 1500s, when an unknown printer took a galley of
-              type and scrambled it to make a type specimen book.
+            Reach out to us and let us know if there is anything we can do for you. 
+            Please give 24 hours for a response. For urgent questions, please call 0522322047 during business hours.
+            Location & Business Hours
+            Happy Cat Cafe
+            Cinema City, 3
+            Rishon LeZion, Israel 7575126
+            (052)232-20-47
+            meow@happycatrl.com
             </p>
           </div>
         </div>

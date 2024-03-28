@@ -90,6 +90,19 @@ app.post("/appointments", async (req, res) => {
   }
 });
 
+// Delete functionality
+app.delete("/appointments/:id", (req, res) => {
+  const { id } = req.params;
+  pool.query(
+    `DELETE FROM appointments WHERE id = $1`,
+    [id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: "Failed to delete appointment" });
+      return res.json({ message: "Appointment deleted successfully" });
+    }
+  );
+});
+
 io.on("connect", socket => {});
 
 server.listen(4000, () => {

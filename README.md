@@ -4,18 +4,43 @@ This is a simple Node.js express + React app, data stores in postgres db. The ap
 
 ## Installation
 
-You have to create an .env file in server directory with following data:
-```
-DATABASE_USER=postgres
-DATABASE_PASSWORD=9271
-DATABASE_HOST=db
-DATABASE_PORT=5432
-DATABASE_NAME=AppointmentDB
-COOKIE_SECRET=*anything on your choice*
-```
+Firstrly you have to create two terminals in folders server, client and client and use `npm install` to download all needed modules.
+Moreover you have to create a local postgres tables:
 
-And then all you have to do is to download this repository and use the following Docker command: `docker-compose up`
+```PostgreSQL
+CREATE TABLE users(
+
+    id SERIAL PRIMARY KEY,
+
+    email VARCHAR(100) NOT NULL UNIQUE,
+
+    name VARCHAR(100) NOT NULL,
+
+    passhash VARCHAR NOT NULL
+
+);
+
+
+CREATE TABLE appointments(
+
+    id SERIAL PRIMARY KEY,
+
+    email VARCHAR(100) NOT NULL,
+
+    name VARCHAR(100) NOT NULL,
+
+    meal_kind VARCHAR(20) NOT NULL,
+
+    date date NOT NULL,
+
+    time time NOT NULL,
+
+    appointment_remark VARCHAR(200) NOT NULL
+
+);
+```
+Then you have to create a .env file in folder server with DATABASE_USER, DATABASE_PASSWORD, DATABASE_HOST, DATABASE_PORT, DATABASE_NAME and COOKIE_SECRET variables defined.
 
 ## Usage
 
-Now you can simply type "localhost:3000" in your browser and test the app.
+Create two terminals in server and client folders and run `npm start` commands in each of them.

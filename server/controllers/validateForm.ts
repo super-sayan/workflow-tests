@@ -56,20 +56,34 @@ const formSchemaPost = Yup.object({
     ),
   meal_kind: Yup
     .string()
-    .required('Please choose your which type of Meal do you prefer'),
+    .required('Please choose your which type of Meal do you prefer')
+    .test('valid-meal', 'Choose meal from the list', (value: string | undefined) => {
+      if (!value) return false;
+      return ["Breakfast", "Business Lunch", "Dinner"].includes(value);
+    }),
   date: Yup
     .string()
-    .required('Please choose the Date of your visit'),
+    .required('Please choose the Date of your visit')
+    .test('valid-date', 'Date must be from tomorrow and up to 3 months', (value: string | undefined) => {
+      if (!value) return false;
+      const selectedDate = new Date(value);
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate());
+      const threeMonthsLater = new Date();
+      threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
+      return selectedDate >= tomorrow && selectedDate <= threeMonthsLater;
+    }),
   time: Yup
     .string()
-    .required('Please choose the Time of your visit'),
+    .required('Please choose the Time of your visit')
+    .test('valid-time', 'Time must be between 9 and 18', (value: string | undefined) => {
+      if (!value) return false;
+      const hours = parseInt(value.split(':')[0]);
+      return hours >= 9 && hours <= 18;
+    }),
   appointment_remark: Yup
     .string()
 });
-
-// export { formSchemaLogin, formSchemaSignup, formSchemaPost };
-
-//module.exports = { formSchemaLogin, formSchemaSignup, formSchemaPost };
 
 const validateLoginForm = (req, res) => {
   const formData = req.body;
@@ -102,7 +116,10 @@ const validatePostForm = (req, res) => {
   formSchemaPost
     .validate(formData)
     .then(() => {
-      console.log("form is good");
+      if (formData.email !== req.session.user.email) {
+        throw new Error("Email does not match the logged-in user");
+      }
+      console.log("Form is good");
     })
     .catch((err) => {
       res.status(422).send();

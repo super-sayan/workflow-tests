@@ -6,8 +6,8 @@ import { AccountContext } from "../AccountContext";
 import { useNavigate } from "react-router";
 
 function Posts() {
-
   interface Data {
+    id: number;
     name: string;
     email: string;
     meal_kind: string;
@@ -15,12 +15,13 @@ function Posts() {
     date: string;
     time: string;
   }
+
   const [data, setData] = useState<Array<Data>>([]);
   const navigate = useNavigate();
   const { user } = useContext(AccountContext) as { user: { loggedIn: boolean, email: string } };
 
   useEffect(() => {
-    if (user.loggedIn){
+    if (user.loggedIn) {
       axios.get("http://localhost:4000/appointments", {
         withCredentials: true,
         headers: {
@@ -31,12 +32,28 @@ function Posts() {
         .then((response) => setData(response.data))
         .catch((error) => console.log(error));
     }
-  }, []);
+  }, [user]);
 
-  if (user.loggedIn !== true ){
+  const handleDelete = (id:number) => {
+    axios.delete(`http://localhost:4000/appointments/${id}`, {
+      withCredentials: true,
+      headers: {
+        "Content-Type": "application/json",
+        "User-Email": user.email
+      }
+    })
+      .then(() => {
+        // Update the data after successful deletion
+        setData(data.filter(item => item.id !== id));
+      })
+      .catch((error) => console.log(error));
+  };
+
+  if (!user.loggedIn) {
     navigate("/login");
     return null;
-  } 
+  }
+
   return (
     <VStack
       w={{ base: "100%", md: "900px" }}
@@ -47,15 +64,15 @@ function Posts() {
     >
       <Heading>Appointments</Heading>
       <Text fontSize={"20"}>
-        Pay attention, you have orderd a specific time for visiting our 
-        restaurant, we advice you to arrive 10 minutes before your 
-        reservation, if you will be late for more than 15 minutes your 
-        reservation will be cancelled add will have to make a new appointment. 
+        Pay attention, you have ordered a specific time for visiting our 
+        restaurant. We advise you to arrive 10 minutes before your 
+        reservation. If you will be late for more than 15 minutes, your 
+        reservation will be cancelled and you will have to make a new appointment. 
       </Text>
       <Text fontSize={"22"}>
         You can see your appointments below:
       </Text>
-      <TableContainer>
+      <TableContainer overflowY="scroll" maxHeight="500px">
         <Table variant='simple'>
           <Thead>
             <Tr>
@@ -76,6 +93,9 @@ function Posts() {
               <Td>{d.date.split("T")[0]}</Td>
               <Td>{d.time}</Td>
               <Td>{d.appointment_remark}</Td>
+              <Td>
+                <Button colorScheme="red" onClick={() => handleDelete(d.id)}>Cancel</Button>
+              </Td>
             </Tr>
           ))}
           </Tbody>

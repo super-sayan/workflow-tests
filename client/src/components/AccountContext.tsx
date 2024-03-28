@@ -16,7 +16,7 @@ const UserContext: React.FC<UserContextProps> = ({ children }) => {
 
   useEffect(() => {
     axios.get("http://localhost:4000/auth/login", {
-      withCredentials: true, // equivalent to credentials: 'include' in fetch
+      withCredentials: true,
     })
       .then(response => {
         const data = response.data;
@@ -26,7 +26,6 @@ const UserContext: React.FC<UserContextProps> = ({ children }) => {
       .catch(() => {
         setUser({ loggedIn: false });
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

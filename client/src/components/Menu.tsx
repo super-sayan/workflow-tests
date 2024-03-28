@@ -1,6 +1,3 @@
-//import React from "react";
-//import React = require('react');
-//import imageToAdd from "../assets/images/";
 const logo = require('../assets/images/Cat_Den.png');
 
 function Menu() {
@@ -9,11 +6,6 @@ function Menu() {
       <div className="container">
         <div className="row align-items-center my-5">
           <div className="col-lg-7">
-            {/* <img
-              className="img-fluid rounded mb-4 mb-lg-0"
-              src="http://placehold.it/3002×4201"
-              alt=""
-            /> */}
             <img alt='logo' style={{ width: 600 }} src={String(logo)} />
           </div>
           <div className="col-lg-5">
