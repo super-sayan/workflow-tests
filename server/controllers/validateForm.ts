@@ -1,4 +1,5 @@
 const Yup = require("yup");
+const jwt = require("jsonwebtoken");
 
 const formSchemaLogin = Yup.object({
   email: Yup.string()
@@ -79,7 +80,9 @@ const formSchemaPost = Yup.object({
     .test('valid-time', 'Time must be between 9 and 18', (value: string | undefined) => {
       if (!value) return false;
       const hours = parseInt(value.split(':')[0]);
-      return hours >= 9 && hours <= 18;
+      const minutes = parseInt(value.split(':')[1]);
+      return (hours >= 9 && hours <= 17
+        && minutes <= 59) || (hours === 18 && minutes === 0);
     }),
   appointment_remark: Yup
     .string()
@@ -113,19 +116,19 @@ const validateSignupForm = (req, res) => {
 
 const validatePostForm = (req, res) => {
   const formData = req.body;
-  formSchemaPost
-    .validate(formData)
-    .then(() => {
-      if (formData.email !== req.session.user.email) {
-        throw new Error("Email does not match the logged-in user");
-      }
-      console.log("Form is good");
-    })
-    .catch((err) => {
-      res.status(422).send();
-      console.log(err.errors);
-    });
+  // Extract token from request headers
+  const token = req.headers.authorization.split(" ")[1];
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    // Check if the email in the form matches the decoded email from the token
+    if (formData.email !== decoded.email) {
+      return res.status(403).json({ message: "Email does not match the logged-in user" });
+    }
+    console.log("Form is good");
+    // Proceed with further validation or processing
+  });
 };
-
 
 export { validateLoginForm, validateSignupForm, validatePostForm };

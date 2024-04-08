@@ -4,7 +4,7 @@ import { AccountContext } from "../AccountContext";
 import axios from "axios";
 
 const Logout = () => {
-    const { setUser } = useContext(AccountContext) as any;
+    const { logoutUser } = useContext(AccountContext) as any; // Update to use logoutUser
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -14,12 +14,11 @@ const Logout = () => {
               "Content-Type": "application/json",
             },
         })
-        .then(res => {
-            const data = res.data;
-            setUser({ ...data });
-            navigate("/login");
-          })
-    }, []);
+        .then(() => {
+          logoutUser(); // Call logoutUser function
+          navigate("/login");
+        })
+  }, []);
 
     return <p>Logging out...</p>;
 };

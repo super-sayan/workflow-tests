@@ -9,7 +9,7 @@ import TextField from "./TextField";
 const Yup = require("yup");
 
 const SignUp = () => {
-  const { setUser } = useContext(AccountContext) as any;
+  const { signupUser } = useContext(AccountContext) as any;
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const formSchemaSignup = Yup.object({
@@ -60,7 +60,7 @@ const SignUp = () => {
             }
 
             const data = res.data;
-            setUser({ ...data, email: vals.email });
+            signupUser(data.token, values.email);
 
             if (data.status) {
               setError(data.status);

@@ -18,7 +18,9 @@ function Posts() {
 
   const [data, setData] = useState<Array<Data>>([]);
   const navigate = useNavigate();
-  const { user } = useContext(AccountContext) as { user: { loggedIn: boolean, email: string } };
+  // const { user } = useContext(AccountContext) as { user: { loggedIn: boolean, email: string, token: string} };
+  const { user } = useContext(AccountContext) as { user: { loggedIn: boolean, token: string} };
+
 
   useEffect(() => {
     if (user.loggedIn) {
@@ -26,10 +28,11 @@ function Posts() {
         withCredentials: true,
         headers: {
           "Content-Type": "application/json",
-          "User-Email": user.email
+          "Authorization": `Bearer ${user.token}`
+          //"User-Email": user.email
         }
       })
-        .then((response) => setData(response.data))
+        .then((response) => setData(response.data.data))
         .catch((error) => console.log(error));
     }
   }, [user]);
@@ -39,7 +42,8 @@ function Posts() {
       withCredentials: true,
       headers: {
         "Content-Type": "application/json",
-        "User-Email": user.email
+        "Authorization": `Bearer ${user.token}`
+        //"User-Email": user.email
       }
     })
       .then(() => {

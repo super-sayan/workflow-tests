@@ -1,16 +1,15 @@
 import { Button, ButtonGroup, Heading, Text, VStack } from "@chakra-ui/react";
-import { Form, Formik } from "formik";
 import { useContext, useState } from "react";
-import { useNavigate } from "react-router";
 import { AccountContext } from "../AccountContext";
 import axios from "axios";
+import { useNavigate } from "react-router";
+import { Form, Formik } from "formik";
 import TextField from "./TextField";
 import LoggedInRedirect from "./LoginRedirect";
 const Yup = require("yup");
 
-
 const Login = () => {
-  const { setUser } = useContext(AccountContext) as any;
+  const { loginUser } = useContext(AccountContext) as any;
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const formSchemaLogin = Yup.object({
@@ -40,10 +39,10 @@ const Login = () => {
         }
 
         const data = res.data;
-        setUser({ ...data, email: vals.email }); 
         if (data.status) {
           setError(data.status);
         } else if (data.loggedIn) {
+          loginUser(data.token, values.email);
           navigate("/appointments");
         }
       })

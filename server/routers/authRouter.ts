@@ -1,92 +1,63 @@
-import {validateLoginForm, validateSignupForm} from '../controllers/validateForm';
+import { validateLoginForm, validateSignupForm } from '../controllers/validateForm';
+import { verifyToken } from './verifyToken'; // Importing verifyToken function
 const express = require("express");
 const router = express.Router();
-import {pool} from '../db';
+import { pool } from '../db';
 const bcrypt = require("bcrypt");
-
+const jwt = require("jsonwebtoken");
 router
   .route("/login")
-  .get(async (req, res) => {
-    if (req.session.user && req.session.user.email) {
-      res.json({ loggedIn: true, email: req.session.user.email });
-    } else {
-      res.json({ loggedIn: false });
-    }
-  })
   .post(async (req, res) => {
     validateLoginForm(req, res);
-
-    const potentialLogin = await pool.query(
+    const { email, password } = req.body;
+    const user = await pool.query(
       "SELECT id, email, passhash FROM users u WHERE u.email=$1",
-      [req.body.email]
+      [email]
     );
-
-    if (potentialLogin.rowCount > 0) {
-      const isSamePass = await bcrypt.compare(
-        req.body.password,
-        potentialLogin.rows[0].passhash
-      );
-      if (isSamePass) {
-        req.session.user = {
-          email: req.body.email,
-          id: potentialLogin.rows[0].id,
-        };
-        res.json({ loggedIn: true, email: req.body.email });
-      } else {
-        res.json({ loggedIn: false, status: "Wrong email or password!" });
-        console.log("not good");
-      }
-    } else {
-      console.log("not good");
-      res.json({ loggedIn: false, status: "Wrong email or password!" });
+    if (user.rows.length === 0) {
+      return res.status(401).json({ message: "Invalid email or password" });
+      //res.json({ loggedIn: false, status: "Wrong email or password!" });
     }
+    const validPassword = await bcrypt.compare(password, user.rows[0].passhash);
+    if (!validPassword) {
+      return res.status(401).json({ message: "Invalid email or password" });
+      //res.json({ loggedIn: false, status: "Wrong email or password!" });
+    }
+    const token = jwt.sign({ email: user.rows[0].email }, process.env.JWT_SECRET, {expiresIn: '1h'});
+    res.json({ loggedIn: true, token });
   });
 
-router.route("/logout").get(async (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      console.error("Error destroying session:", err);
-      return res.status(500).json({ message: "Failed to log out" });
+  router
+  .route("/signup")
+  .post(async (req, res) => {
+    validateSignupForm(req, res);
+    const { email, name, password } = req.body;
+    const userExists = await pool.query(
+      "SELECT * FROM users WHERE email=$1",
+      [email]
+    );
+    if (userExists.rows.length > 0) {
+      return res.status(400).json({ message: "User already exists" });
     }
-    res.status(200).json({ message: "Logged out successfully", loggedIn: false });
+    const salt = await bcrypt.genSalt(10);
+    const passhash = await bcrypt.hash(password, salt);
+    await pool.query(
+      "INSERT INTO users (email, name, passhash) VALUES ($1, $2, $3)",
+      [email, name, passhash]
+    );
+    const token = jwt.sign({ email }, process.env.JWT_SECRET);
+    res.json({ loggedIn: true, token });
   });
+
+// Protected route example
+router.get("/protected", verifyToken, (req, res) => {
+  res.json({ message: "Protected route accessed successfully" });
 });
 
-router.post("/signup", async (req, res) => {
-  try {
-    validateSignupForm(req, res);
-
-    const existingUser = await pool.query(
-      "SELECT email from users WHERE email=$1",
-      [req.body.email]
-    );
-
-    // Check if passwords match
-    const passwordsMatch = req.body.password === req.body.password2;
-
-    if (!passwordsMatch) {
-      return res.json({ loggedIn: false, status: "Passwords do not match" });
-    }
-
-    if (existingUser.rowCount === 0) {
-      // Register new user
-      const hashedPass = await bcrypt.hash(req.body.password, 10);
-      const newUserQuery = await pool.query(
-        "INSERT INTO users(email, name, passhash) values($1,$2,$3) RETURNING id, email",
-        [req.body.email, req.body.name, hashedPass]
-      );
-      req.session.user = {
-        email: req.body.email,
-        id: newUserQuery.rows[0].id,
-      };
-      return res.json({ loggedIn: true, email: req.body.email });
-    } else {
-      return res.json({ loggedIn: false, status: "Email is taken" });
-    }
-  } catch (error) {
-    console.error("Error in signup route:", error);
-    return res.status(500).json({ loggedIn: false, status: "Internal Server Error" });
-  }
+router.get("/logout", (req, res) => {
+  res.clearCookie("token");
+  console.log("Logged out succesfully");
+  res.json({ loggedIn: false, message: "Logout successful" });
 });
 
 module.exports = router;

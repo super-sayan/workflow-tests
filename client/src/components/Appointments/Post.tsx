@@ -12,7 +12,7 @@ const Yup = require("yup");
 function Post() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-  const { user } = useContext(AccountContext) as { user: { loggedIn: boolean, email: string } };
+  const { user } = useContext(AccountContext) as { user: { loggedIn: boolean, email: string, token: string } };
   const formSchemaPost = Yup.object({
     email: Yup
       .string()
@@ -21,7 +21,7 @@ function Post() {
         /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$/,
         "Email must be valid"
       )
-      .test('valid-email', 'You ahve to Sign Up and Login with this email to make an appointment', (value: string | undefined) => {
+      .test('valid-email', 'You have to Sign Up and Login with this email to make an appointment', (value: string | undefined) => {
         if (!value || value !== user.email) return false;
         return true;
       }),
@@ -80,6 +80,7 @@ function Post() {
           withCredentials: true,
           headers: {
             "Content-Type": "application/json",
+            "Authorization": `Bearer ${user.token}`
           },
         })
         .then(res => {
