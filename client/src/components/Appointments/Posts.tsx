@@ -18,9 +18,7 @@ function Posts() {
 
   const [data, setData] = useState<Array<Data>>([]);
   const navigate = useNavigate();
-  // const { user } = useContext(AccountContext) as { user: { loggedIn: boolean, email: string, token: string} };
-  const { user } = useContext(AccountContext) as { user: { loggedIn: boolean, token: string} };
-
+  const { user } = useContext(AccountContext) as { user: { loggedIn: boolean, email : string, token: string} };
 
   useEffect(() => {
     if (user.loggedIn) {
@@ -29,7 +27,6 @@ function Posts() {
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${user.token}`
-          //"User-Email": user.email
         }
       })
         .then((response) => setData(response.data.data))
@@ -37,17 +34,16 @@ function Posts() {
     }
   }, [user]);
 
+
   const handleDelete = (id:number) => {
     axios.delete(`http://localhost:4000/appointments/${id}`, {
       withCredentials: true,
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${user.token}`
-        //"User-Email": user.email
       }
     })
       .then(() => {
-        // Update the data after successful deletion
         setData(data.filter(item => item.id !== id));
       })
       .catch((error) => console.log(error));

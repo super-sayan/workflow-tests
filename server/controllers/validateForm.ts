@@ -117,7 +117,8 @@ const validateSignupForm = (req, res) => {
 const validatePostForm = (req, res) => {
   const formData = req.body;
   // Extract token from request headers
-  const token = req.headers.authorization.split(" ")[1];
+  // const token = req.headers.authorization.split(" ")[1];
+  const token = req.cookies.token;
   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) {
       return res.status(401).json({ message: "Unauthorized" });

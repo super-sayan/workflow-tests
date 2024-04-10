@@ -42,7 +42,7 @@ const Login = () => {
         if (data.status) {
           setError(data.status);
         } else if (data.loggedIn) {
-          loginUser(data.token, values.email);
+          loginUser(data.token);
           navigate("/appointments");
         }
       })

@@ -60,7 +60,7 @@ const SignUp = () => {
             }
 
             const data = res.data;
-            signupUser(data.token, values.email);
+            signupUser(data.token);
 
             if (data.status) {
               setError(data.status);

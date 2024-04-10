@@ -1,10 +1,11 @@
 import { validateLoginForm, validateSignupForm } from '../controllers/validateForm';
-import { verifyToken } from './verifyToken'; // Importing verifyToken function
+// import { verifyToken } from './verifyToken';
 const express = require("express");
 const router = express.Router();
 import { pool } from '../db';
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+
 router
   .route("/login")
   .post(async (req, res) => {
@@ -23,7 +24,8 @@ router
       return res.status(401).json({ message: "Invalid email or password" });
       //res.json({ loggedIn: false, status: "Wrong email or password!" });
     }
-    const token = jwt.sign({ email: user.rows[0].email }, process.env.JWT_SECRET, {expiresIn: '1h'});
+    const token = jwt.sign({ email: user.rows[0].email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    res.cookie('refreshToken', token, { httpOnly: true } );
     res.json({ loggedIn: true, token });
   });
 
@@ -45,17 +47,18 @@ router
       "INSERT INTO users (email, name, passhash) VALUES ($1, $2, $3)",
       [email, name, passhash]
     );
-    const token = jwt.sign({ email }, process.env.JWT_SECRET);
+    const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    res.cookie('refreshToken', token, { httpOnly: true });
     res.json({ loggedIn: true, token });
   });
 
-// Protected route example
-router.get("/protected", verifyToken, (req, res) => {
-  res.json({ message: "Protected route accessed successfully" });
-});
+// router.get("/protected", verifyToken, (req, res) => {
+//   res.json({ message: "Protected route accessed successfully" });
+// });
 
 router.get("/logout", (req, res) => {
-  res.clearCookie("token");
+  res.clearCookie("refreshToken");
+  res.clearCookie("connect.sid");
   console.log("Logged out succesfully");
   res.json({ loggedIn: false, message: "Logout successful" });
 });
