@@ -6,44 +6,34 @@ import { useContext, useState } from "react";
 import { useNavigate } from "react-router";
 import { AccountContext } from "../AccountContext";
 import TextField from "./TextField";
-const Yup = require("yup");
+import { z } from "zod";
+import { toFormikValidationSchema } from "zod-formik-adapter";
 
 const SignUp = () => {
   const { signupUser } = useContext(AccountContext) as any;
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-  const formSchemaSignup = Yup.object({
-    email: Yup
-      .string()
-      .required('Please Enter your Email')
-      .matches(
-        /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$/,
-        "Email must be valid"
-      ),
-    name: Yup
-      .string()
-      .required('Please Enter your Full Name')
-      .matches(
-        /^[a-zA-Z]+\s[a-zA-Z]+$/,
-        "Must contain your First and Last name in English, devided by space"
-      ),
-    password: Yup
-      .string()
-      .required('Please Enter your password')
-      .matches(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*])(?=.{8,})/,
-        "Must Contain at least 8 Characters, One Uppercase, One Lowercase, One Number and one special case Character"
-      ),
-    password2: Yup
-      .string()
-      .required('You have to confirm your password')
-      .oneOf([Yup.ref("password"), null], "Passwords must match")
-  });  
+  const formSchemaSignup = z.object({
+    email: z.string()
+      .min(1, { message: "Please Enter your Email" })
+      .email({ message: "Email must be valid" }),
+    name: z.string()
+      .min(1, { message: "Please Enter your Full Name" })
+      .regex(/^[a-zA-Z]+\s[a-zA-Z]+$/, { message: "Must contain your First and Last name in English, divided by space" }),
+    password: z.string()
+      .min(1, { message: "Please Enter your password" })
+      .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/, { message: "Must Contain at least 8 Characters, One Uppercase, One Lowercase, One Number and one special case Character" }),
+    password2: z.string()
+      .min(1, { message: "You have to confirm your password" })
+  }).refine((data: { password: string; password2: string; }) => data.password === data.password2, {
+    message: "Password must match!",
+    path: ["password2"]
+  });
 
   return (
     <Formik
       initialValues={{ email: "", password: "", name: "", password2: "" }}
-      validationSchema={formSchemaSignup}
+      validationSchema={toFormikValidationSchema(formSchemaSignup)}
       onSubmit={(values, actions) => {
         const vals = { ...values };
         actions.resetForm();
@@ -60,11 +50,12 @@ const SignUp = () => {
             }
 
             const data = res.data;
-            signupUser(data.token);
+            
 
             if (data.status) {
               setError(data.status);
             } else if (data.loggedIn) {
+              signupUser(data.token);
               navigate("/appointments");
             }
           })

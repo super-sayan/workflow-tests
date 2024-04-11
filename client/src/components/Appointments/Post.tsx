@@ -6,61 +6,42 @@ import { VStack, Heading, Text, Button, ButtonGroup, Select, Textarea, FormLabel
 import TextField from "../Login/TextField";
 import { useContext } from "react";
 import { AccountContext } from "../AccountContext";
-const Yup = require("yup");
+import { z } from "zod";
+import { toFormikValidationSchema } from "zod-formik-adapter";
 
 
 function Post() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { user } = useContext(AccountContext) as { user: { loggedIn: boolean, email: string, token: string } };
-  const formSchemaPost = Yup.object({
-    email: Yup
-      .string()
-      .required('Email must match with logged-in user')
-      .matches(
-        /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$/,
-        "Email must be valid"
-      )
-      .test('valid-email', 'You have to Sign Up and Login with this email to make an appointment', (value: string | undefined) => {
-        if (!value || value !== user.email) return false;
-        return true;
-      }),
-    name: Yup
-      .string()
-      .required('Please Enter your Full Name')
-      .matches(
-        /^[a-zA-Z]+\s[a-zA-Z]+$/,
-        "Must contain your First and Last name in English, devided by space"
-      ),
-    meal_kind: Yup
-      .string()
-      .required('Please choose your which type of Meal do you prefer')
-      .test('valid-meal', 'Choose meal from the list', (value: string | undefined) => {
-        if (!value) return false;
-        return ["Breakfast", "Business Lunch", "Dinner"].includes(value);
-      }),
-    date: Yup
-      .string()
-      .required('Please choose the Date of your visit')
-      .test('valid-date', 'Date must be from tomorrow and up to 3 months', (value: string | undefined) => {
-        if (!value) return false;
+  const formSchemaPost = z.object({
+    email: z.string()
+      .min(1, { message: "Email must match with logged-in user" })
+      .email({ message: "Email must be valid" })
+      .refine((value: string) => value === user.email, { message: "You have to Sign Up and Login with this email to make an appointment" }),
+    name: z.string()
+      .min(1, { message: "Please Enter your Full Name" })
+      .regex(/^[a-zA-Z]+\s[a-zA-Z]+$/, { message: "Must contain your First and Last name in English, divided by space" }),
+    meal_kind: z.string()
+      .min(1, { message: "Please choose your which type of Meal do you prefer" })
+      .refine((value: string) => ["Breakfast", "Business Lunch", "Dinner"].includes(value), { message: "Choose meal from the list" }),
+    date: z.string()
+      .min(1, { message: "Please choose the Date of your visit" })
+      .refine((value: string) => {
         const selectedDate = new Date(value);
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate());
         const threeMonthsLater = new Date();
         threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
         return selectedDate >= tomorrow && selectedDate <= threeMonthsLater;
-      }),
-    time: Yup
-      .string()
-      .required('Please choose the Time of your visit')
-      .test('valid-time', 'Time must be between 9 and 18', (value: string | undefined) => {
-        if (!value) return false;
+      }, { message: "Date must be from tomorrow and up to 3 months" }),
+    time: z.string()
+      .min(1, { message: "Please choose the Time of your visit" })
+      .refine((value: string) => {
         const hours = parseInt(value.split(':')[0]);
         return hours >= 9 && hours <= 18;
-      }),
-      appointment_remark: Yup
-      .string()
+      }, { message: "Time must be between 9 and 18" }),
+    appointment_remark: z.string()
   });
   
   if (user.loggedIn !== true) {
@@ -71,7 +52,7 @@ function Post() {
   return (
     <Formik
       initialValues={{ email: user.email, name: "", meal_kind: "", date: "", time: "", appointment_remark: "" }}
-      validationSchema={formSchemaPost}
+      validationSchema={toFormikValidationSchema(formSchemaPost)}
       onSubmit={(values, actions) => {
         const vals = { ...values };
         actions.resetForm();

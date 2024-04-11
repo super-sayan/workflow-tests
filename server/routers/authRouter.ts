@@ -1,5 +1,4 @@
 import { validateLoginForm, validateSignupForm } from '../controllers/validateForm';
-// import { verifyToken } from './verifyToken';
 const express = require("express");
 const router = express.Router();
 import { pool } from '../db';
@@ -16,17 +15,15 @@ router
       [email]
     );
     if (user.rows.length === 0) {
-      return res.status(401).json({ message: "Invalid email or password" });
-      //res.json({ loggedIn: false, status: "Wrong email or password!" });
+      return res.json({ loggedIn: false, status: "Wrong email or password!" });
     }
     const validPassword = await bcrypt.compare(password, user.rows[0].passhash);
     if (!validPassword) {
-      return res.status(401).json({ message: "Invalid email or password" });
-      //res.json({ loggedIn: false, status: "Wrong email or password!" });
+      return res.json({ loggedIn: false, status: "Wrong email or password!" });
     }
     const token = jwt.sign({ email: user.rows[0].email }, process.env.JWT_SECRET, { expiresIn: '1h' });
     res.cookie('refreshToken', token, { httpOnly: true } );
-    res.json({ loggedIn: true, token });
+    return res.json({ loggedIn: true, token });
   });
 
   router
@@ -39,7 +36,7 @@ router
       [email]
     );
     if (userExists.rows.length > 0) {
-      return res.status(400).json({ message: "User already exists" });
+      return res.json({ loggedIn: false, status: "User with this email already exists!" });
     }
     const salt = await bcrypt.genSalt(10);
     const passhash = await bcrypt.hash(password, salt);
@@ -49,12 +46,8 @@ router
     );
     const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '1h' });
     res.cookie('refreshToken', token, { httpOnly: true });
-    res.json({ loggedIn: true, token });
+    return res.json({ loggedIn: true, token });
   });
-
-// router.get("/protected", verifyToken, (req, res) => {
-//   res.json({ message: "Protected route accessed successfully" });
-// });
 
 router.get("/logout", (req, res) => {
   res.clearCookie("refreshToken");

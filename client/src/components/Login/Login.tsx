@@ -6,22 +6,21 @@ import { useNavigate } from "react-router";
 import { Form, Formik } from "formik";
 import TextField from "./TextField";
 import LoggedInRedirect from "./LoginRedirect";
-const Yup = require("yup");
+import { z } from "zod";
+import { toFormikValidationSchema } from "zod-formik-adapter";
 
 const Login = () => {
   const { loginUser } = useContext(AccountContext) as any;
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-  const formSchemaLogin = Yup.object({
-    email: Yup.string()
-      .required("Email is required")
-      .matches(
-        /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$/,
-        "Email must be valid"
-      ),
-    password: Yup.string()
-      .required("Password is required")
-  });  
+
+  const formSchemaLogin = z.object({
+    email: z.string()
+      .min(1, { message: "Email is required" })
+      .email({ message: "Email must be valid" }),
+    password: z.string()
+      .min(1, { message: "Password is required" })
+  });
 
   const handleLogin = (values: any, actions: { resetForm: () => void; }) => {
     const vals = { ...values };
@@ -50,13 +49,13 @@ const Login = () => {
         console.error(err);
       });
   };
-  
+
   return (
     <>
       <LoggedInRedirect />
       <Formik
         initialValues={{ email: "", password: "" }}
-        validationSchema={formSchemaLogin}
+        validationSchema={toFormikValidationSchema(formSchemaLogin)}
         onSubmit={handleLogin}
       >
         <VStack

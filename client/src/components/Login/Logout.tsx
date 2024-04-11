@@ -18,7 +18,7 @@ const Logout = () => {
           logoutUser();
           navigate("/login");
         })
-  }, []);
+    }, [logoutUser, navigate]);
 
     return <p>Logging out...</p>;
 };

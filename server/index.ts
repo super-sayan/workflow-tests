@@ -44,7 +44,6 @@ app.use("/auth", authRouter);
 
 app.get("/appointments", verifyToken, (req: CustomRequest, res) => {
   const email = req.user?.email;
-  console.log("Received email:", email);
   var actual_date = new Date();
   pool.query(
     `SELECT * FROM appointments WHERE email = $1 AND date > $2 ORDER BY date, time`,
@@ -85,7 +84,6 @@ app.post("/appointments", verifyToken, async (req, res) => {
 app.delete("/appointments/:id", verifyToken, (req: CustomRequest, res) => {
   const { id } = req.params;
   const email = req.user?.email;
-  console.log("User: " + email +" deletes record " + id);
   pool.query(
       `DELETE FROM appointments WHERE id = $1 AND email = $2`,
       [id, email],
