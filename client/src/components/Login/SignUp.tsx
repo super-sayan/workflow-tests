@@ -38,7 +38,7 @@ const SignUp = () => {
         const vals = { ...values };
         actions.resetForm();
 
-        axios.post("http://localhost:4000/auth/signup", vals, {
+        axios.post("/auth/signup", vals, {
           withCredentials: true,
           headers: {
             "Content-Type": "application/json",

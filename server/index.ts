@@ -21,7 +21,7 @@ interface CustomRequest extends Request {
 require("dotenv").config();
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: "*",
     credentials: true, 
   },
 });
@@ -35,7 +35,7 @@ function addDays(date, days) {
 app.use(helmet());
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: "*",
     credentials: true,
   })
 );

@@ -22,7 +22,7 @@ function Posts() {
 
   useEffect(() => {
     if (user.loggedIn) {
-      axios.get("http://localhost:4000/appointments", {
+      axios.get("/appointments", {
         withCredentials: true,
         headers: {
           "Content-Type": "application/json",
@@ -36,7 +36,7 @@ function Posts() {
 
 
   const handleDelete = (id:number) => {
-    axios.delete(`http://localhost:4000/appointments/${id}`, {
+    axios.delete(`/appointments/${id}`, {
       withCredentials: true,
       headers: {
         "Content-Type": "application/json",

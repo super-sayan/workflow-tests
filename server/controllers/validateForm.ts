@@ -53,6 +53,7 @@ const formSchemaPost = z.object({
       return (hours >= 9 && hours <= 17 && minutes <= 59) || (hours === 18 && minutes === 0);
     }, { message: "Time must be between 9 and 18" }),
   appointment_remark: z.string()
+    .optional(),
 });
 
 const validateLoginForm = (req, res) => {

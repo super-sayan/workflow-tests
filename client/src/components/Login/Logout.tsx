@@ -8,7 +8,7 @@ const Logout = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        axios.get("http://localhost:4000/auth/logout", {
+        axios.get("/auth/logout", {
             withCredentials: true,
             headers: {
               "Content-Type": "application/json",

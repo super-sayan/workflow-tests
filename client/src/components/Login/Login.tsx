@@ -26,7 +26,7 @@ const Login = () => {
     const vals = { ...values };
     actions.resetForm();
 
-    axios.post("http://localhost:4000/auth/login", vals, {
+    axios.post("/auth/login", vals, {
       withCredentials: true,
       headers: {
         "Content-Type": "application/json",

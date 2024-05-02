@@ -29,14 +29,14 @@ const UserContext: React.FC<UserContextProps> = ({ children }) => {
   useEffect(() => {
     const tokenCookie = document.cookie.split(';').find(cookie => cookie.trim().startsWith('token='));
     if (tokenCookie) {
-      const decodedToken = jwtDecode(tokenCookie.split('=')[1] as string);
+      const decodedToken = jwtDecode<User>(tokenCookie.split('=')[1] as string);
       const email = decodedToken.email;
       setUser({ loggedIn: true, token: tokenCookie.split('=')[1], email });
     }
   }, []);
 
   const loginUser = (token: string) => {
-    const decodedToken = jwtDecode(token);
+    const decodedToken = jwtDecode<User>(token);
     const email = decodedToken.email;
     const expirationDate = new Date();
     expirationDate.setDate(expirationDate.getDate() + 7);
@@ -50,7 +50,7 @@ const UserContext: React.FC<UserContextProps> = ({ children }) => {
   };
 
   const signupUser = (token: string) => {
-    const decodedToken = jwtDecode(token);
+    const decodedToken = jwtDecode<User>(token);
     const email = decodedToken.email;
     const expirationDate = new Date();
     expirationDate.setDate(expirationDate.getDate() + 7);

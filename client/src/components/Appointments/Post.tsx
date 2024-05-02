@@ -42,6 +42,7 @@ function Post() {
         return hours >= 9 && hours <= 18;
       }, { message: "Time must be between 9 and 18" }),
     appointment_remark: z.string()
+    .optional(),
   });
   
   if (user.loggedIn !== true) {
@@ -57,7 +58,7 @@ function Post() {
         const vals = { ...values };
         actions.resetForm();
 
-        axios.post("http://localhost:4000/appointments", vals, {
+        axios.post("/appointments", vals, {
           withCredentials: true,
           headers: {
             "Content-Type": "application/json",

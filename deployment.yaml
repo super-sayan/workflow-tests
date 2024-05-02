@@ -1,0 +1,204 @@
+apiVersion: "v1"
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: "default"
+type: Opaque
+data:
+  postgres-username: cG9zdGdyZXM=
+  postgres-password: OTI3MQ==
+
+---
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  name: "server-service"
+  namespace: "default"
+  labels:
+    app: "server"
+spec:
+  ports:
+  - protocol: "TCP"
+    port: 4000
+    targetPort: 4000
+  selector:
+    app: "server"
+  type: "ClusterIP"
+
+---
+
+apiVersion: "apps/v1"
+kind: Deployment
+metadata:
+  name: "server"
+  namespace: "default"
+  labels:
+    app: "server"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "server"
+  template:
+    metadata:
+      labels:
+        app: "server"
+    spec:
+      containers:
+        - env:
+            - name: DB_HOST
+              value: "db"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: postgres-username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: postgres-password
+            - name: DB_NAME
+              value: "appointmentdb"
+            - name: DB_PORT
+              value: "5432"
+          name: "server"
+          image: sukurukun/happycatcafe-server:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 4000
+              hostPort: 4000
+              protocol: TCP  
+
+---
+
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "db"
+  namespace: "default"
+  labels:
+    app: "db"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "db"
+  template:
+    metadata:
+      labels:
+        app: "db"
+    spec:
+      containers:
+        - name: "db"
+          image: sukurukun/happycatcafe-db:latest
+          imagePullPolicy: Always
+          livenessProbe:
+              exec:
+                command:
+                  - pg_isready
+              failureThreshold: 5
+              periodSeconds: 10
+              timeoutSeconds: 5
+          env:
+            - name: POSTGRES_DB
+              value: "appointmentdb"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: postgres-username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: postgres-password
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+              name: db
+          volumeMounts:
+            - mountPath: /var/lib/postgres
+              name: db-data
+            - mountPath: /docker-entrypoint-initdb.d/
+              name: db-volume
+      restartPolicy: Always
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: db-data
+        - name: db-volume
+          hostPath:
+            path: db
+
+---
+apiVersion: "v1"
+kind: PersistentVolumeClaim
+metadata:
+  name: db-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+
+apiVersion: "v1"
+kind: Service
+metadata:
+  name: db-service
+spec:
+  ports:
+    - name: "5432"
+      port: 5432
+      targetPort: 5432
+  selector:
+    app: db
+  type: "ClusterIP"
+
+---
+
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "client"
+  namespace: "default"
+  labels:
+    app: "client"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "client"
+  template:
+    metadata:
+      labels:
+        app: "client"
+    spec:
+      containers:
+        - name: "client"
+          image: sukurukun/happycatcafe-client:latest
+          imagePullPolicy: Always
+          ports:
+              - containerPort: 3000
+                hostPort: 3000
+                protocol: TCP
+---
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  name: "client-balancer"
+  namespace: "default"
+  labels:
+    app: "client"
+spec:
+  ports:
+  - protocol: "TCP"
+    port: 3000
+    targetPort: 3000
+  selector:
+    app: "client"
+  type: "LoadBalancer"
+  loadBalancerIP: ""
