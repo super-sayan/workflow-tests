@@ -16,6 +16,10 @@ JWT_SECRET=secret
 ```
 JWT_SECRET can be any string on your choice.
 
-## Usage
+## Usage Docker Compose
 
 You can start the application using Docker `docker compose up` command. Then all you have to do is to open localhost:3000 in browser.
+
+## Usage Kubernetes
+
+You can start the kubernetes via Docker or any other way and use `kubectl apply -f deployment.yaml` command. After all pods will be created you can visit localhost:3000 in browser.
