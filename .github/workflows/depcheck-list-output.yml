@@ -32,14 +32,16 @@ jobs:
       - name: Run Depcheck and Write to List
         run: |
           echo "Unused Dependencies:" > unused_dependencies.txt
-            for dir in ${{ env.PACKAGE_DIRS }}; do
+          for dir in ${{ env.PACKAGE_DIRS }}; do
             echo "Running depcheck in $dir..."
             cd "$dir" || exit
             output=$(npx depcheck || true)
+      
+            # Parse and annotate unused dependencies
             if echo "$output" | grep -q "Unused dependencies"; then
               echo "$output" | sed -n '/Unused dependencies/,$p' | while IFS= read -r line; do
                 if [[ $line == "*"* ]]; then
-                  dep=$(echo "$line" | sed 's/* //')
+                  dep=$(echo "$line" | sed -E 's/\* //; s/:.*$//')
                   echo "$dep" >> ../unused_dependencies.txt
                 fi
               done
@@ -49,8 +51,8 @@ jobs:
             if echo "$output" | grep -q "Unused devDependencies"; then
               echo "$output" | sed -n '/Unused devDependencies/,$p' | while IFS= read -r line; do
                 if [[ $line == "*"* ]]; then
-                  dep=$(echo "$line" | sed 's/* //')
-                  echo "$dep" >> ../unused_dependencies.tx
+                  dep=$(echo "$line" | sed -E 's/\* //; s/:.*$//')
+                  echo "$dep" >> ../unused_dependencies.txt
                 fi
               done
             fi
