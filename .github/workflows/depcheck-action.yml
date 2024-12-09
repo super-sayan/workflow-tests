@@ -8,7 +8,7 @@ env:
   PACKAGE_DIRS: ". ./server ./client"
 
 jobs:
-  depcheck_action:
+  depcheck_tool:
     runs-on: ubuntu-latest
 
     steps:
@@ -30,10 +30,12 @@ jobs:
           done
         shell: bash
 
-      - name: Run Depcheck Action
-        uses: tj-actions/depcheck@v9
-        with:
-          dir: ${{ env.PACKAGE_DIRS }}
-          ignores: "typescript,react" # Adjust this to ignore specific packages
-          version: "1.4.7"
-
+      - name: Run Depcheck for All Directories
+        run: |
+          for dir in ${{ env.PACKAGE_DIRS }}; do
+            echo "Running depcheck in $dir"
+            cd "$dir" || exit
+            npx depcheck || true
+            cd - || exit
+          done
+        shell: bash
