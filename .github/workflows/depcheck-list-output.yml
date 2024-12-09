@@ -64,7 +64,7 @@ jobs:
 
       - name: Generate SBOM using Syft
         run: |
-          syft . --file=sbom.json --format=cyclonedx
+          syft . --output cyclonedx-json=sbom.json
 
       - name: Remove Unused Dependencies from SBOM
         run: |
