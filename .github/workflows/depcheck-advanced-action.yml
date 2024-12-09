@@ -5,7 +5,7 @@ on:
 
 env:
   NODE_VERSION: 16.x
-  PACKAGE_DIRS: ". ./server ./client"
+  PACKAGE_DIRS: ". ./client ./server"
 
 jobs:
   depcheck_with_alerts:
