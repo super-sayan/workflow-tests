@@ -1,20 +1,18 @@
-name: CI Pipeline
+name: Check Unused Dependencies
 
 on:
   workflow_dispatch:
 
 env:
   NODE_VERSION: 16.x
-  PACKAGE_DIRS: |
-    .
-    ./server
-    ./client
+  PACKAGE_DIRS: ". ./server ./client"
 
 jobs:
-  depcheck:
+  depcheck_action:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
       - name: Setup Node.js
@@ -22,18 +20,20 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install Dependencies and Cache
+      - name: Install Dependencies
         run: |
           for dir in ${{ env.PACKAGE_DIRS }}; do
+            echo "Installing dependencies in $dir"
             cd "$dir" || exit
             npm install
             cd - || exit
           done
+        shell: bash
 
-      - name: Run Depcheck
-        run: |
-          for dir in ${{ env.PACKAGE_DIRS }}; do
-            cd "$dir" || exit
-            npx depcheck > "$dir-unused-deps.txt"
-            cd - || exit
-          done
+      - name: Run Depcheck Action
+        uses: tj-actions/depcheck@v9
+        with:
+          dir: ${{ env.PACKAGE_DIRS }}
+          ignores: "typescript,react" # Adjust this to ignore specific packages
+          version: "1.4.7"
+
