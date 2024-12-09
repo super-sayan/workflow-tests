@@ -1,0 +1,44 @@
+name: Check for Unused Dependencies
+
+on:
+  workflow_dispatch:
+
+jobs:
+  depcheck:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dir: 
+          - ./ # Root project
+          - ./server # Server-side package.json
+          - ./client # Client-side package.json
+
+    steps:
+      # Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16' # Specify the version of Node.js your project uses
+
+      # Install dependencies for each package.json
+      - name: Install dependencies
+        run: npm install
+        working-directory: ${{ matrix.dir }}
+
+      # Run depcheck for each directory
+      - name: Run depcheck
+        uses: tj-actions/depcheck@v9
+        with:
+          dir: ${{ matrix.dir }}
+          ignores: some-package,another-package # Add packages to ignore (optional)
+          version: 1.4.7 # Specify the depcheck version (optional)
+
+      # Save output to a file (optional)
+      - name: Save unused dependencies to a file
+        run: |
+          npx depcheck > unused-dependencies-${{ matrix.dir }}.txt
+        working-directory: ${{ matrix.dir }}
