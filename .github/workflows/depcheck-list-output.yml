@@ -85,6 +85,6 @@ jobs:
       - name: Upload Unused Dependencies
         uses: actions/upload-artifact@v3
         with:
-          name: unused-dependencies-txt
-          path: unused_dependencies.txt
+          name: filtered-sbom-json
+          path: filtered_sbom.json
           
