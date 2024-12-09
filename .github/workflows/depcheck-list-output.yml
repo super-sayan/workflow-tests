@@ -70,8 +70,15 @@ jobs:
         run: |
           echo "Removing unused dependencies from SBOM"
           unused_deps=$(cat unused_dependencies.txt)
-          jq --argjson unused "[$(echo "$unused_deps" | sed 's/^/"/;s/$/"/;s/\n/,/g' | sed 's/,$//')]" \
-            '.components |= map(select(.name as $name | $unused | index($name) | not))' sbom.json > filtered_sbom.json
+    
+          # Convert the unused dependencies list to a valid JSON array
+          unused_json=$(echo "$unused_deps" | jq -R -s 'split("\n") | map(select(length > 0))')
+
+          # Filter out the unused dependencies from the SBOM
+          jq --argjson unused "$unused_json" '
+          . components |= map(select(.name as $name | $unused | index($name) | not))
+          ' sbom.json > filtered_sbom.json
+
           
     #      for dir in ${{ env.PACKAGE_DIRS }}; do
     #        echo "Running depcheck in $dir"
@@ -91,9 +98,9 @@ jobs:
     #        fi
 
 
-    #  - name: Upload Unused Dependencies
-    #    uses: actions/upload-artifact@v3
-    #    with:
-    #      name: unused-dependencies-list
-    #      path: unused_dependencies.txt
+      - name: Upload Unused Dependencies
+        uses: actions/upload-artifact@v3
+        with:
+          name: filtered-sbom-json
+          path: filtered_sbom.json
           
