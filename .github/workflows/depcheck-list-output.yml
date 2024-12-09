@@ -76,8 +76,9 @@ jobs:
 
           # Filter out the unused dependencies from the SBOM
           jq --argjson unused "$unused_json" '
-          . components |= map(select(.name as $name | $unused | index($name) | not))
+          .components |= map(select(.name | IN($unused[] | .)))
           ' sbom.json > filtered_sbom.json
+
 
           
     #      for dir in ${{ env.PACKAGE_DIRS }}; do
