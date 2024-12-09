@@ -1,0 +1,64 @@
+name: Check Unused Dependencies with Alerts
+
+on:
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: 16.x
+  PACKAGE_DIRS: ". ./server ./client"
+
+jobs:
+  depcheck_with_alerts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Dependencies
+        run: |
+          for dir in ${{ env.PACKAGE_DIRS }}; do
+            echo "Installing dependencies in $dir"
+            cd "$dir" || exit
+            npm install
+            cd - || exit
+          done
+        shell: bash
+
+      - name: Run Depcheck and Output Alerts
+        run: |
+          for dir in ${{ env.PACKAGE_DIRS }}; do
+            echo "Running depcheck in $dir"
+            cd "$dir" || exit
+            output=$(npx depcheck || true)
+
+            echo "$output"
+
+            # Parse and annotate unused dependencies
+            if echo "$output" | grep -q "Unused dependencies"; then
+              echo "$output" | sed -n '/Unused dependencies/,$p' | while IFS= read -r line; do
+                if [[ $line == "*"* ]]; then
+                  dep=$(echo "$line" | sed 's/* //')
+                  echo "::warning file=${dir}/package.json,title=Unused dependency::$dep is unused in $dir"
+                fi
+              done
+            fi
+
+            # Parse and annotate unused devDependencies
+            if echo "$output" | grep -q "Unused devDependencies"; then
+              echo "$output" | sed -n '/Unused devDependencies/,$p' | while IFS= read -r line; do
+                if [[ $line == "*"* ]]; then
+                  dep=$(echo "$line" | sed 's/* //')
+                  echo "::warning file=${dir}/package.json,title=Unused devDependency::$dep is unused in $dir"
+                fi
+              done
+            fi
+
+            cd - || exit
+          done
+        shell: bash
