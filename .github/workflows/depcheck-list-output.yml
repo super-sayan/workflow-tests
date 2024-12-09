@@ -74,9 +74,9 @@ jobs:
           # Convert the unused dependencies list to a valid JSON array
           unused_json=$(echo "$unused_deps" | jq -R -s 'split("\n") | map(select(length > 0))')
 
-          # Filter out the unused dependencies from the SBOM
+          # Filter to keep only the used dependencies (exclude the unused ones)
           jq --argjson unused "$unused_json" '
-          .components |= map(select(.name | IN($unused[] | .)))
+          .components |= map(select(.name | IN($unused[]) | not))
           ' sbom.json > filtered_sbom.json
 
 
@@ -102,6 +102,6 @@ jobs:
       - name: Upload Unused Dependencies
         uses: actions/upload-artifact@v3
         with:
-          name: sbom-json
-          path: sbom.json
+          name: filtered-sbom-json
+          path: filtered_sbom.json
           
