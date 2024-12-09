@@ -66,15 +66,21 @@ jobs:
         run: |
           syft . --output cyclonedx-json=sbom.json
 
-      - name: Remove Unused Dependencies from SBOM by Name
+      - name: Extract Unused Dependencies from SBOM
         run: |
-          echo "Removing unused dependencies from SBOM"
+          echo "Extracting names of unused dependencies"
           unused_deps=$(cat unused_dependencies.txt)
     
-          # Convert the unused dependencies list to a valid JSON array
-          unused_json=$(echo "$unused_deps" | jq -R -s 'split("\n") | map(select(length > 0))')
+          # Match unused dependencies against SBOM component names
+          jq --argjson unused "$(echo "$unused_deps" | jq -R -s 'split("\n") | map(select(length > 0))')" '
+            .components | map(select(.name as $name | $unused | index($name))) | map(.name)
+          ' sbom.json > refined_unused.json
 
-          # Filter to keep only the used dependencies (exclude the unused ones by comparing the 'name' field)
+      - name: Remove Unused Dependencies from SBOM
+        run: |
+          echo "Removing unused dependencies from SBOM"
+          unused_json=$(cat refined_unused.json)
+
           jq --argjson unused "$unused_json" '
           .components |= map(select(.name | index($unused[]) | not))
           ' sbom.json > filtered_sbom.json
