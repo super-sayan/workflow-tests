@@ -41,27 +41,27 @@ jobs:
           done
           cat unused_dependencies.txt
           
-         # for dir in ${{ env.PACKAGE_DIRS }}; do
-         #   echo "Running depcheck in $dir"
-         #   cd "$dir" || exit
-         #   output=$(npx depcheck || true)
+    #      for dir in ${{ env.PACKAGE_DIRS }}; do
+    #        echo "Running depcheck in $dir"
+    #        cd "$dir" || exit
+    #        output=$(npx depcheck || true)
 
-         #   echo "$output"
+    #        echo "$output"
 
-         #   # Parse and annotate unused dependencies
-         #   if echo "$output" | grep -q "Unused dependencies"; then
-         #     echo "$output" | sed -n '/Unused dependencies/,$p' | while IFS= read -r line; do
-         #       if [[ $line == "*"* ]]; then
-         #         dep=$(echo "$line" | sed 's/* //')
-         #         echo "::warning file=${dir}/package.json,title=Unused dependency::$dep is unused in $dir"
-         #       fi
-         #     done
-         #   fi
+    #        # Parse and annotate unused dependencies
+    #        if echo "$output" | grep -q "Unused dependencies"; then
+    #          echo "$output" | sed -n '/Unused dependencies/,$p' | while IFS= read -r line; do
+    #            if [[ $line == "*"* ]]; then
+    #              dep=$(echo "$line" | sed 's/* //')
+    #              echo "::warning file=${dir}/package.json,title=Unused dependency::$dep is unused in $dir"
+    #            fi
+    #          done
+    #        fi
 
 
-     # - name: Upload Unused Dependencies
-     #   uses: actions/upload-artifact@v3
-     #   with:
-     #     name: unused-dependencies-list
-     #     path: unused_dependencies.txt
+      - name: Upload Unused Dependencies
+        uses: actions/upload-artifact@v3
+        with:
+          name: unused-dependencies-list
+          path: unused_dependencies.txt
           
