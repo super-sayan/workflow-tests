@@ -7,7 +7,7 @@ env:
   PACKAGE_DIRS: ". ./client ./server"
 
 jobs:
-  depcheck_to_list:
+  generate_clean_sbom:
     runs-on: ubuntu-latest
 
     steps:
@@ -57,6 +57,21 @@ jobs:
             cd - || exit
           done
           cat unused_dependencies.txt
+      
+      - name: Install Syft for SBOM Generation
+        run: |
+          curl -sSL https://github.com/anchore/syft/releases/download/v1.17.0/syft_1.17.0_linux_amd64.tar.gz | tar xz -C /usr/local/bin syft
+
+      - name: Generate SBOM using Syft
+        run: |
+          syft . --file=sbom.json --format=cyclonedx
+
+      - name: Remove Unused Dependencies from SBOM
+        run: |
+          echo "Removing unused dependencies from SBOM"
+          unused_deps=$(cat unused_dependencies.txt)
+          jq --argjson unused "[$(echo "$unused_deps" | sed 's/^/"/;s/$/"/;s/\n/,/g' | sed 's/,$//')]" \
+            '.components |= map(select(.name as $name | $unused | index($name) | not))' sbom.json > filtered_sbom.json
           
     #      for dir in ${{ env.PACKAGE_DIRS }}; do
     #        echo "Running depcheck in $dir"
@@ -76,9 +91,9 @@ jobs:
     #        fi
 
 
-      - name: Upload Unused Dependencies
-        uses: actions/upload-artifact@v3
-        with:
-          name: unused-dependencies-list
-          path: unused_dependencies.txt
+    #  - name: Upload Unused Dependencies
+    #    uses: actions/upload-artifact@v3
+    #    with:
+    #      name: unused-dependencies-list
+    #      path: unused_dependencies.txt
           
