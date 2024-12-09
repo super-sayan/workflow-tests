@@ -29,7 +29,7 @@ jobs:
           done
         shell: bash
 
-      - name: Run Depcheck and Output Alerts
+      - name: Run Depcheck and Write to List
         run: |
           echo "Unused Dependencies:" > unused_dependencies.txt
             for dir in ${{ env.PACKAGE_DIRS }}; do
@@ -40,7 +40,7 @@ jobs:
               echo "$output" | sed -n '/Unused dependencies/,$p' | while IFS= read -r line; do
                 if [[ $line == "*"* ]]; then
                   dep=$(echo "$line" | sed 's/* //')
-                  echo dep >> ../unused_dependencies.txt
+                  echo "$dep" >> ../unused_dependencies.txt
                 fi
               done
             fi
@@ -50,7 +50,7 @@ jobs:
               echo "$output" | sed -n '/Unused devDependencies/,$p' | while IFS= read -r line; do
                 if [[ $line == "*"* ]]; then
                   dep=$(echo "$line" | sed 's/* //')
-                  echo dep >> ../unused_dependencies.tx
+                  echo "$dep" >> ../unused_dependencies.tx
                 fi
               done
             fi
