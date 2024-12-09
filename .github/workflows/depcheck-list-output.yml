@@ -35,8 +35,9 @@ jobs:
             for dir in ${{ env.PACKAGE_DIRS }}; do
             echo "Running depcheck in $dir..."
             cd "$dir" || exit
-            npx depcheck | grep "Unused dependencies" | sed -n '/Unused dependencies/,$p' >> ../unused_dependencies.txt
-            npx depcheck | grep "Unused devDependencies" | sed -n '/Unused dependencies/,$p' >> ../unused_dependencies.txt
+            output=$(npx depcheck || true)
+            echo "$output" | grep "Unused dependencies" | sed -n '/Unused dependencies/,$p' >> ../unused_dependencies.txt
+            echo "$output" | grep "Unused devDependencies" | sed -n '/Unused dependencies/,$p' >> ../unused_dependencies.txt
             cd - || exit
           done
           cat unused_dependencies.txt
