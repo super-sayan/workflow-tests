@@ -1,44 +1,39 @@
-name: Check for Unused Dependencies
+name: CI Pipeline
 
 on:
   workflow_dispatch:
 
+env:
+  NODE_VERSION: 16.x
+  PACKAGE_DIRS: |
+    .
+    ./server
+    ./client
+
 jobs:
   depcheck:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        dir: 
-          - ./ # Root project
-          - ./server # Server-side package.json
-          - ./client # Client-side package.json
-
     steps:
-      # Checkout repository
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      # Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16' # Specify the version of Node.js your project uses
+          node-version: ${{ env.NODE_VERSION }}
 
-      # Install dependencies for each package.json
-      - name: Install dependencies
-        run: npm install
-        working-directory: ${{ matrix.dir }}
-
-      # Run depcheck for each directory
-      - name: Run depcheck
-        uses: tj-actions/depcheck@v9
-        with:
-          dir: ${{ matrix.dir }}
-          ignores: some-package,another-package # Add packages to ignore (optional)
-          version: 1.4.7 # Specify the depcheck version (optional)
-
-      # Save output to a file (optional)
-      - name: Save unused dependencies to a file
+      - name: Install Dependencies and Cache
         run: |
-          npx depcheck > unused-dependencies-${{ matrix.dir }}.txt
-        working-directory: ${{ matrix.dir }}
+          for dir in ${{ env.PACKAGE_DIRS }}; do
+            cd "$dir" || exit
+            npm install
+            cd - || exit
+          done
+
+      - name: Run Depcheck
+        run: |
+          for dir in ${{ env.PACKAGE_DIRS }}; do
+            cd "$dir" || exit
+            npx depcheck > "$dir-unused-deps.txt"
+            cd - || exit
+          done
