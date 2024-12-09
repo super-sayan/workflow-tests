@@ -68,22 +68,21 @@ jobs:
 
       - name: Extract Unused Dependencies from SBOM
         run: |
-          echo "Extracting names of unused dependencies"
+          # Step 1: Convert the unused dependencies list to JSON
           unused_deps=$(cat unused_dependencies.txt)
-    
-          # Match unused dependencies against SBOM component names
-          jq --argjson unused "$(echo "$unused_deps" | jq -R -s 'split("\n") | map(select(length > 0))')" '
-            .components | map(select(.name as $name | $unused | index($name))) | map(.name)
-          ' sbom.json > refined_unused.json
+          unused_json=$(echo "$unused_deps" | jq -R -s 'split("\n") | map(select(length > 0))')
 
-      - name: Remove Unused Dependencies from SBOM
-        run: |
-          echo "Removing unused dependencies from SBOM"
-          unused_json=$(cat refined_unused.json)
-
+          # Step 2: Process the SBOM to remove unnecessary data for matching dependencies
           jq --argjson unused "$unused_json" '
-          .components |= map(select(.name | index($unused[]) | not))
+            .components |= map(
+              if .name as $name | $unused | index($name) then
+                {name: .name, bom-ref: .["bom-ref"], properties: .properties}
+              else
+                .
+              end
+            )
           ' sbom.json > filtered_sbom.json
+
 
       - name: Upload Unused Dependencies
         uses: actions/upload-artifact@v3
