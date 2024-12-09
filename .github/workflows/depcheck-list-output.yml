@@ -31,25 +31,33 @@ jobs:
 
       - name: Run Depcheck and Output Alerts
         run: |
-          for dir in ${{ env.PACKAGE_DIRS }}; do
-            echo "Running depcheck in $dir"
+          echo "Unused Dependencies:" > unused_dependencies.txt
+                    for dir in ${{ env.PACKAGE_DIRS }}; do
+            echo "Running depcheck in $dir..."
             cd "$dir" || exit
-            output=$(npx depcheck || true)
-            echo "$output"
+            depcheck | grep "Unused dependencies" | sed -n '/Unused dependencies/,$p' >> ../unused_dependencies.txt
+            depcheck | grep "Unused devDependencies" | sed -n '/Unused dependencies/,$p' >> ../unused_dependencies.txt
+            cd - || exit
+          done
+          cat unused_dependencies.txt
+          
+         # for dir in ${{ env.PACKAGE_DIRS }}; do
+         #   echo "Running depcheck in $dir"
+         #   cd "$dir" || exit
+         #   output=$(npx depcheck || true)
 
-        shell: bash
+         #   echo "$output"
 
-     # - name: Check Unused Dependencies
-     #   run: |
-     #     echo "Unused Dependencies:" > unused_dependencies.txt
-     #     for dir in $PACKAGE_DIRS; do
-     #       echo "Running depcheck in $dir..."
-     #       cd "$dir" || exit
-     #       depcheck | grep "Unused dependencies" | sed 's/Unused dependencies//' >> ../unused_dependencies.txt
-     #       depcheck | grep "Unused devDependencies" | sed 's/Unused devDependencies//' >> ../unused_dependencies.txt
-     #       cd - || exit
-     #     done
-     #     cat unused_dependencies.txt
+         #   # Parse and annotate unused dependencies
+         #   if echo "$output" | grep -q "Unused dependencies"; then
+         #     echo "$output" | sed -n '/Unused dependencies/,$p' | while IFS= read -r line; do
+         #       if [[ $line == "*"* ]]; then
+         #         dep=$(echo "$line" | sed 's/* //')
+         #         echo "::warning file=${dir}/package.json,title=Unused dependency::$dep is unused in $dir"
+         #       fi
+         #     done
+         #   fi
+
 
      # - name: Upload Unused Dependencies
      #   uses: actions/upload-artifact@v3
