@@ -36,8 +36,24 @@ jobs:
             echo "Running depcheck in $dir..."
             cd "$dir" || exit
             output=$(npx depcheck || true)
-            echo "$output" | grep "Unused dependencies" | sed -n '/Unused dependencies/,$p' >> ../unused_dependencies.txt
-            echo "$output" | grep "Unused devDependencies" | sed -n '/Unused dependencies/,$p' >> ../unused_dependencies.txt
+            if echo "$output" | grep -q "Unused dependencies"; then
+              echo "$output" | sed -n '/Unused dependencies/,$p' | while IFS= read -r line; do
+                if [[ $line == "*"* ]]; then
+                  dep=$(echo "$line" | sed 's/* //')
+                  echo dep >> ../unused_dependencies.txt
+                fi
+              done
+            fi
+
+            # Parse and annotate unused devDependencies
+            if echo "$output" | grep -q "Unused devDependencies"; then
+              echo "$output" | sed -n '/Unused devDependencies/,$p' | while IFS= read -r line; do
+                if [[ $line == "*"* ]]; then
+                  dep=$(echo "$line" | sed 's/* //')
+                  echo dep >> ../unused_dependencies.tx
+                fi
+              done
+            fi
             cd - || exit
           done
           cat unused_dependencies.txt
