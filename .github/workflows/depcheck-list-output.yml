@@ -2,24 +2,37 @@ name: Check Unused Dependencies (List)
 on:
   workflow_dispatch:
 
+env:
+  NODE_VERSION: 16.x
+  PACKAGE_DIRS: ". ./client ./server"
+  
 jobs:
-  check-unused-dependencies:
+  depcheck_with_alerts:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Set Node.js Version
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Dependencies
+        run: |
+          for dir in ${{ env.PACKAGE_DIRS }}; do
+            echo "Installing dependencies in $dir"
+            cd "$dir" || exit
+            npm install
+            cd - || exit
+          done
+        shell: bash
 
       - name: Install Depcheck Globally
         run: npm install -g depcheck
 
       - name: Check Unused Dependencies
-        env:
-          PACKAGE_DIRS: ". ./server ./client"
         run: |
           echo "Unused Dependencies:" > unused_dependencies.txt
           for dir in $PACKAGE_DIRS; do
