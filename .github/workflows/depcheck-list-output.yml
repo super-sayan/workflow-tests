@@ -7,7 +7,7 @@ env:
   PACKAGE_DIRS: ". ./client ./server"
 
 jobs:
-  depcheck_with_alerts:
+  depcheck_to_list:
     runs-on: ubuntu-latest
 
     steps:
