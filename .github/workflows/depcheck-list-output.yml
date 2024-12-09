@@ -66,7 +66,7 @@ jobs:
         run: |
           syft . --output cyclonedx-json=sbom.json
 
-      - name: Remove Unused Dependencies from SBOM
+      - name: Remove Unused Dependencies from SBOM by Name
         run: |
           echo "Removing unused dependencies from SBOM"
           unused_deps=$(cat unused_dependencies.txt)
@@ -74,30 +74,10 @@ jobs:
           # Convert the unused dependencies list to a valid JSON array
           unused_json=$(echo "$unused_deps" | jq -R -s 'split("\n") | map(select(length > 0))')
 
-          # Filter to keep only the used dependencies (exclude the unused ones)
+          # Filter to keep only the used dependencies (exclude the unused ones by comparing the 'name' field)
           jq --argjson unused "$unused_json" '
-          .components |= map(select(.name | IN($unused[]) | not))
+          .components |= map(select(.name | index($unused[]) | not))
           ' sbom.json > filtered_sbom.json
-
-
-          
-    #      for dir in ${{ env.PACKAGE_DIRS }}; do
-    #        echo "Running depcheck in $dir"
-    #        cd "$dir" || exit
-    #        output=$(npx depcheck || true)
-
-    #        echo "$output"
-
-    #        # Parse and annotate unused dependencies
-    #        if echo "$output" | grep -q "Unused dependencies"; then
-    #          echo "$output" | sed -n '/Unused dependencies/,$p' | while IFS= read -r line; do
-    #            if [[ $line == "*"* ]]; then
-    #              dep=$(echo "$line" | sed 's/* //')
-    #              echo "::warning file=${dir}/package.json,title=Unused dependency::$dep is unused in $dir"
-    #            fi
-    #          done
-    #        fi
-
 
       - name: Upload Unused Dependencies
         uses: actions/upload-artifact@v3
