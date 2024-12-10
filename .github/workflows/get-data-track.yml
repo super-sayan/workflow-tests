@@ -18,7 +18,7 @@ jobs:
         id: fetch-project-id
         run: |
           project_id=$(curl -s -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
-          "${{ env.DEPENDENCY_TRACK_BASE_URL }}/projects" | jq -r '.[] | select(.name == "${{ env.PROJECT_NAME }}") | .id')
+          "${{ env.DEPENDENCY_TRACK_BASE_URL }}/projects" | jq -r --arg project_name "${{ env.PROJECT_NAME }}" '.[] | select(.name == $project_name) | .id')
           echo "Project ID: $project_id"
           echo "project_id=$project_id" >> $GITHUB_ENV
 
