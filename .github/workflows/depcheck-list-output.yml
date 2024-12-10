@@ -110,9 +110,7 @@ jobs:
       - name: Upload SBOM to Dependency Track
         uses: DependencyTrack/gh-upload-sbom@v3
         with:
-          protocol: 'https'
-          serverHostname: '32fd-62-90-190-70.ngrok-free.app'
-          port: '443'
+          serverHostname: ${{ env.DEPENDENCY_TRACK_BASE_URL }}
           apiKey: ${{ env.DEPENDENCY_TRACK_API_KEY }}
           projectName: ${{ env.PROJECT_NAME }} # change projectName -> to repo_name
           projectVersion: '1.0.0'
