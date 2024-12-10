@@ -62,15 +62,11 @@ jobs:
       
       - name: Install Syft for SBOM Generation
         run: |
-          curl -sSL https://github.com/aquasecurity/trivy/releases/download/v0.58.0/trivy_0.58.0_Linux-64bit.tar.gz | sudo tar xz -C /usr/local/bin
-
-    #      curl -sSL https://github.com/anchore/syft/releases/download/v1.17.0/syft_1.17.0_linux_amd64.tar.gz | tar xz -C /usr/local/bin syft
+          curl -sSL https://github.com/anchore/syft/releases/download/v1.17.0/syft_1.17.0_linux_amd64.tar.gz | tar xz -C /usr/local/bin syft
 
       - name: Generate SBOM using Syft
         run: |
-          trivy fs --format cyclonedx --output sbom.json .
-          
-    #      syft . --output cyclonedx-json=sbom.json
+          syft . --output cyclonedx-json=sbom.json
 
       - name: Remove Unused Dependencies from SBOM
         run: |
@@ -85,10 +81,19 @@ jobs:
             .components |= map(select(.name | IN($unused[]) | not))
           ' sbom.json > filtered_sbom.json
 
-
-      - name: Upload Unused Dependencies
-        uses: actions/upload-artifact@v3
+      - name: Upload SBOM to Dependency Track
+        uses: DependencyTrack/gh-upload-sbom@v3
         with:
-          name: filtered-sbom-json
-          path: filtered_sbom.json
+          serverHostname: 'http://localhost:8081/api/v1/bom'
+          apiKey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+          projectName: 'happy-cat-workflow'
+          projectVersion: 'master'
+          bomFilename: filtered_sbom.json
+          autoCreate: true
+
+ #     - name: Upload Unused Dependencies
+ #       uses: actions/upload-artifact@v3
+ #       with:
+ #         name: filtered-sbom-json
+ #         path: filtered_sbom.json
           
