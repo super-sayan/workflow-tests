@@ -102,7 +102,7 @@ jobs:
           apiKey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
           projectName: 'Trivy Used-Only' # change projectName -> to repo_name
           projectVersion: '1.0.0'
-          bomFilename: filtered_sbom.json # Adjust path if needed
+          bomFilename: "./filtered_sbom.json" # Adjust path if needed
           autoCreate: true
 
 
