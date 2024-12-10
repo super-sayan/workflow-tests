@@ -114,7 +114,7 @@ jobs:
           serverHostname: '32fd-62-90-190-70.ngrok-free.app'
           port: '443'
           apiKey: ${{ env.DEPENDENCY_TRACK_API_KEY }}
-          projectName: ${{ env.PROJECT_NAME }}' # change projectName -> to repo_name
+          projectName: ${{ env.PROJECT_NAME }} # change projectName -> to repo_name
           projectVersion: '1.0.0'
           bomFilename: "./filtered_sbom.json" # Adjust path if needed
           autoCreate: true
