@@ -74,21 +74,23 @@ jobs:
         run: |
           echo "Removing unused dependencies from SBOM"
           unused_deps=$(cat unused_dependencies.txt)
-    
+
           # Convert the unused dependencies list to a valid JSON array
           unused_json=$(echo "$unused_deps" | jq -R -s 'split("\n") | map(select(length > 0))')
 
-          # Filter to keep only the used dependencies (exclude the unused ones)
+          # Filter components and update dependencies
           jq --argjson unused "$unused_json" '
-            .components |= map(select(
-              .name | 
-              ( 
-                ($unused | index(.)) 
-                or 
-                ($unused | index(split("/")[0])) # Check for group match
-              ) | not
-            ))
+            # Create a set of valid bom-refs
+            .components as $components |
+            .dependencies as $dependencies |
+            {
+              "components": $components | map(select(.name | IN($unused[]) | not)),
+              "dependencies": $dependencies | map(
+                select(.ref as $ref | $components | map(.["bom-ref"]) | index($ref))
+              )
+            }
           ' sbom.json > filtered_sbom.json
+
           
 
       - name: Upload SBOM to Dependency Track
