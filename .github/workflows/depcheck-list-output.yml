@@ -143,8 +143,9 @@ jobs:
           -o epss.json
           echo "EPSS data fetched successfully."
 
-      - name: Download Results Dependencies
-        uses: actions/upload-artifact@v3
+      - name: Export EPSS Data to GitHub Security Tab
+        uses: austenstone/security-export@main
+        id: export
         with:
-          name: epss-json
-          path: epss.json
+          github-token: ${{ secrets.PAT }}
+          repository: ${{ github.repository }}
