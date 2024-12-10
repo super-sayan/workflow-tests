@@ -73,23 +73,30 @@ jobs:
       - name: Remove Unused Dependencies from SBOM
         run: |
           echo "Removing unused dependencies from SBOM"
+    
+          # Read unused dependencies into a list
           unused_deps=$(cat unused_dependencies.txt)
+    
+          # Convert the list into a JSON array of objects with `group` and `name`
+          unused_json=$(echo "$unused_deps" | jq -R -s '
+            split("\n") | 
+            map(select(length > 0)) |
+            map(if test("^@") then 
+                  {group: (split("/")[0]), name: (split("/")[1])} 
+                else 
+                  {group: null, name: .} 
+                end)
+          ')
 
-          # Convert the unused dependencies list to a valid JSON array
-          unused_json=$(echo "$unused_deps" | jq -R -s 'split("\n") | map(select(length > 0))')
-
-          # Filter components and update dependencies
+          # Filter components, matching against both `group` and `name`
           jq --argjson unused "$unused_json" '
-            # Create a set of valid bom-refs
-            .components as $components |
-            .dependencies as $dependencies |
-            {
-              "components": $components | map(select(.name | IN($unused[]) | not)),
-              "dependencies": $dependencies | map(
-                select(.ref as $ref | $components | map(.["bom-ref"]) | index($ref))
-              )
-            }
+            .components |= map(select(
+              .name as $name | 
+              .group as $group |
+              ($unused | map(.name == $name and .group == $group) | any) | not
+            ))
           ' sbom.json > filtered_sbom.json
+
       
       - name: Upload Unused Dependencies
         uses: actions/upload-artifact@v3
