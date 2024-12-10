@@ -5,6 +5,9 @@ on:
 env:
   NODE_VERSION: 16.x
   PACKAGE_DIRS: ". ./client ./server"
+  DEPENDENCY_TRACK_API_KEY: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+  DEPENDENCY_TRACK_BASE_URL: "https://32fd-62-90-190-70.ngrok-free.app"
+  PROJECT_NAME: "Testing Dep-Track Workflow"  # Replace with repo name later
 
 jobs:
   generate_clean_sbom:
@@ -21,7 +24,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          for dir in ${{ env.PACKAGE_DIRS }}; do
+          for dir in ${{ env. }}; do
             echo "Installing dependencies in $dir"
             cd "$dir" || exit
             npm install
@@ -32,7 +35,7 @@ jobs:
       - name: Run Depcheck and Write to List
         run: |
           echo "Unused Dependencies:" > unused_dependencies.txt
-          for dir in ${{ env.PACKAGE_DIRS }}; do
+          for dir in ${{ env. }}; do
             echo "Running depcheck in $dir..."
             cd "$dir" || exit
             output=$(npx depcheck || true)
@@ -98,11 +101,11 @@ jobs:
           ' sbom.json > filtered_sbom.json
 
       
-      - name: Upload Unused Dependencies
-        uses: actions/upload-artifact@v3
-        with:
-          name: filtered-sbom-json
-          path: filtered_sbom.json
+#      - name: Upload Unused Dependencies
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: filtered-sbom-json
+#          path: filtered_sbom.json
 
       - name: Upload SBOM to Dependency Track
         uses: DependencyTrack/gh-upload-sbom@v3
@@ -110,12 +113,35 @@ jobs:
           protocol: 'https'
           serverHostname: '32fd-62-90-190-70.ngrok-free.app'
           port: '443'
-          apiKey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
-          projectName: 'Trivy Used-Only' # change projectName -> to repo_name
+          apiKey: ${{ env.DEPENDENCY_TRACK_API_KEY }}
+          projectName: ${{ env.PROJECT_NAME }}' # change projectName -> to repo_name
           projectVersion: '1.0.0'
           bomFilename: "./filtered_sbom.json" # Adjust path if needed
           autoCreate: true
 
+      - name: Fetch Project ID
+        id: fetch-project-id
+        run: |
+          project_id=$(curl -s -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
+          "$DEPENDENCY_TRACK_BASE_URL/api/v1/projects" | jq -r '.[] | select(.name == "${{ env.PROJECT_NAME }}") | .id')
+          echo "Project ID: $project_id"
+          echo "project_id=$project_id" >> $GITHUB_ENV
 
+      - name: Fetch EPSS Data
+        id: fetch-epss
+        run: |
+          curl -s -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
+          "${{ env.DEPENDENCY_TRACK_BASE_URL }}/projects/$project_id/epss" \
+          -o epss.json
+          echo "EPSS data fetched successfully."
 
-          
+      - name: Convert JSON to XML
+        run: |
+          cat epss.json | jq -r '
+            {"epss_scores": .} | 
+            toxml("epss_data")' > epss.xml
+          echo "EPSS data converted to XML."
+
+      - name: Output EPSS XML
+        run: |
+          cat epss.xml
