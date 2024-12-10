@@ -107,16 +107,26 @@ jobs:
 #          name: filtered-sbom-json
 #          path: filtered_sbom.json
 
+   #   - name: Upload SBOM to Dependency Track
+   #     uses: DependencyTrack/gh-upload-sbom@v3
+   #     with:
+   #       serverHostname: ${{ env.DEPENDENCY_TRACK_BASE_URL }}
+   #       apiKey: ${{ env.DEPENDENCY_TRACK_API_KEY }}
+   #       projectName: ${{ env.PROJECT_NAME }} # change projectName -> to repo_name
+   #       projectVersion: '1.0.0'
+   #       bomFilename: "./filtered_sbom.json" # Adjust path if needed
+   #       autoCreate: true
       - name: Upload SBOM to Dependency Track
-        uses: DependencyTrack/gh-upload-sbom@v3
-        with:
-          serverHostname: ${{ env.DEPENDENCY_TRACK_BASE_URL }}
-          apiKey: ${{ env.DEPENDENCY_TRACK_API_KEY }}
-          projectName: ${{ env.PROJECT_NAME }} # change projectName -> to repo_name
-          projectVersion: '1.0.0'
-          bomFilename: "./filtered_sbom.json" # Adjust path if needed
-          autoCreate: true
-
+        id: SBOM-upload
+        run: |
+          curl -X "POST" "${{ env.DEPENDENCY_TRACK_BASE_URL }}/api/v1/bom" \
+               -H 'Content-Type: multipart/form-data' \
+               -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
+               -F "autoCreate=true" \
+               -F "projectName=${{ env.PROJECT_NAME }}" \
+               -F "projectVersion=1.0.0" \
+               -F "bom=@./filtered_sbom.json"
+      
       - name: Fetch Project ID
         id: fetch-project-id
         run: |
