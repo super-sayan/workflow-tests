@@ -62,11 +62,13 @@ jobs:
       
       - name: Install Syft for SBOM Generation
         run: |
-          curl -sSL https://github.com/anchore/syft/releases/download/v1.17.0/syft_1.17.0_linux_amd64.tar.gz | tar xz -C /usr/local/bin syft
+          curl -sSL https://github.com/aquasecurity/trivy/releases/download/v0.58.0/syft_0.58.0_linux_amd64.tar.gz | tar xz -C /usr/local/bin trivy
+    #      curl -sSL https://github.com/anchore/syft/releases/download/v1.17.0/syft_1.17.0_linux_amd64.tar.gz | tar xz -C /usr/local/bin syft
 
       - name: Generate SBOM using Syft
         run: |
-          syft . --output cyclonedx-json=sbom.json
+          trivy fs --format cyclonedx --output sbom.json .
+    #      syft . --output cyclonedx-json=sbom.json
 
       - name: Remove Unused Dependencies from SBOM
         run: |
