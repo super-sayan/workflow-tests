@@ -143,9 +143,31 @@ jobs:
           -o epss.json
           echo "EPSS data fetched successfully."
 
-      - name: Export EPSS Data to GitHub Security Tab
-        uses: austenstone/security-export@main
-        id: export
+      - name: Convert EPSS Data to SARIF
+        run: |
+          python3 <<EOF
+          import json
+          with open('epss.json') as f:
+              epss_data = json.load(f)
+
+          sarif = {
+              "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+              "version": "2.1.0",
+              "runs": [{
+                  "tool": {
+                      "driver": {
+                          "name": "Dependency-Track",
+                          "rules": [{"id": finding["id"], "description": finding["description"]} for finding in epss_data]
+                      }
+                  },
+                  "results": [{"ruleId": finding["id"], "message": {"text": finding["description"]}} for finding in epss_data]
+              }]
+          }
+          with open('epss.sarif', 'w') as f:
+              json.dump(sarif, f)
+          EOF
+
+      - name: Upload EPSS Data as SARIF
+        uses: github/codeql-action/upload-sarif@v2
         with:
-          github-token: ${{ secrets.PAT }}
-          repository: ${{ github.repository }}
+          sarif_file: epss.sarif
