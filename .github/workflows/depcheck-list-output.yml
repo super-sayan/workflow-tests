@@ -97,7 +97,7 @@ jobs:
           serverHostname: '32fd-62-90-190-70.ngrok-free.app'
           port: '443'
           apiKey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
-          projectName: 'My Local App'
+          projectName: 'Trivy Used-Only'
           projectVersion: '1.0.0'
           bomFilename: './filtered_sbom.json' # Adjust path if needed
           autoCreate: true
