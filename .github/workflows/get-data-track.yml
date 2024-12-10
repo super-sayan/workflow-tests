@@ -1,4 +1,4 @@
-name: Check Unused Dependencies (List)
+name: Get Data from Dep-Track
 on:
   workflow_dispatch:
 
