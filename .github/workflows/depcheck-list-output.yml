@@ -89,7 +89,8 @@ jobs:
               ) | not
             ))
           ' sbom.json > filtered_sbom.json
-#     change projectName -> to repo_name
+          
+
       - name: Upload SBOM to Dependency Track
         uses: DependencyTrack/gh-upload-sbom@v3
         with:
@@ -97,9 +98,9 @@ jobs:
           serverHostname: '32fd-62-90-190-70.ngrok-free.app'
           port: '443'
           apiKey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
-          projectName: 'Trivy Used-Only'
+          projectName: 'Trivy Used-Only' # change projectName -> to repo_name
           projectVersion: '1.0.0'
-          bomFilename: './filtered_sbom.json' # Adjust path if needed
+          bomFilename: filtered_sbom.json # Adjust path if needed
           autoCreate: true
 
 
