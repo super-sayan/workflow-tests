@@ -84,12 +84,15 @@ jobs:
       - name: Upload SBOM to Dependency Track
         uses: DependencyTrack/gh-upload-sbom@v3
         with:
-          serverHostname: 'http://localhost:8081/api/v1/bom'
+          protocol: 'http'
+          serverHostname: 'localhost'
+          port: '8080'
           apiKey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
-          projectName: 'happy-cat-workflow'
-          projectVersion: 'master'
-          bomFilename: filtered_sbom.json
+          projectName: 'My Local Project'
+          projectVersion: '1.0.0'
+          bomFilename: './filtered_sbom.json' # Adjust path if needed
           autoCreate: true
+
 
  #     - name: Upload Unused Dependencies
  #       uses: actions/upload-artifact@v3
