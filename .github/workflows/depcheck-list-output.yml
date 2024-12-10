@@ -90,8 +90,12 @@ jobs:
               )
             }
           ' sbom.json > filtered_sbom.json
-
-          
+      
+      - name: Upload Unused Dependencies
+        uses: actions/upload-artifact@v3
+        with:
+          name: filtered-sbom-json
+          path: filtered_sbom.json
 
       - name: Upload SBOM to Dependency Track
         uses: DependencyTrack/gh-upload-sbom@v3
@@ -106,9 +110,5 @@ jobs:
           autoCreate: true
 
 
-      - name: Upload Unused Dependencies
-        uses: actions/upload-artifact@v3
-        with:
-          name: filtered-sbom-json
-          path: filtered_sbom.json
+
           
