@@ -24,7 +24,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          for dir in ${{ env. }}; do
+          for dir in ${{ env.PACKAGE_DIRS }}; do
             echo "Installing dependencies in $dir"
             cd "$dir" || exit
             npm install
@@ -35,7 +35,7 @@ jobs:
       - name: Run Depcheck and Write to List
         run: |
           echo "Unused Dependencies:" > unused_dependencies.txt
-          for dir in ${{ env. }}; do
+          for dir in ${{ env.PACKAGE_DIRS }}; do
             echo "Running depcheck in $dir..."
             cd "$dir" || exit
             output=$(npx depcheck || true)
