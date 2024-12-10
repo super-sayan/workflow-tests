@@ -84,9 +84,9 @@ jobs:
       - name: Upload SBOM to Dependency Track
         uses: DependencyTrack/gh-upload-sbom@v3
         with:
-          protocol: 'http'
-          serverHostname: 'localhost'
-          port: '8080'
+          protocol: 'https'
+          serverHostname: '965a-62-90-190-70.ngrok-free.app'
+          port: '443'
           apiKey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
           projectName: 'My Local Project'
           projectVersion: '1.0.0'
