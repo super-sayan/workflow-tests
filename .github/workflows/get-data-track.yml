@@ -30,6 +30,12 @@ jobs:
           -o epss.json
           echo "EPSS data fetched successfully."
 
+      - name: Download Results Dependencies
+        uses: actions/upload-artifact@v3
+        with:
+          name: epss-json
+          path: epss.json
+
       - name: Convert JSON to XML
         run: |
           cat epss.json | jq -r '
