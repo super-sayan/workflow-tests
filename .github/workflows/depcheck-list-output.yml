@@ -80,7 +80,7 @@ jobs:
           jq --argjson unused "$unused_json" '
             .components |= map(select(.name | IN($unused[]) | not))
           ' sbom.json > filtered_sbom.json
-
+#     change projectName -> to repo_name
       - name: Upload SBOM to Dependency Track
         uses: DependencyTrack/gh-upload-sbom@v3
         with:
