@@ -6,7 +6,7 @@ env:
   NODE_VERSION: 16.x
   PACKAGE_DIRS: ". ./client ./server"
   DEPENDENCY_TRACK_API_KEY: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
-  DEPENDENCY_TRACK_BASE_URL: "https://32fd-62-90-190-70.ngrok-free.app"
+  DEPENDENCY_TRACK_BASE_URL: "https://69e1-62-90-190-70.ngrok-free.app"
   PROJECT_NAME: "Testing Dep-Track Workflow"  # Replace with repo name later
 
 jobs:
@@ -123,7 +123,7 @@ jobs:
         id: fetch-project-id
         run: |
           project_id=$(curl -s -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
-          "${{ env.DEPENDENCY_TRACK_BASE_URL }}/api/v1/projects" | jq -r '.[] | select(.name == "${{ env.PROJECT_NAME }}") | .id')
+          "${{ env.DEPENDENCY_TRACK_BASE_URL }}/api/v1/project" | jq -r '.[] | select(.name == "${{ env.PROJECT_NAME }}") | .uuid')
           echo "Project ID: $project_id"
           echo "project_id=$project_id" >> $GITHUB_ENV
 
@@ -131,17 +131,12 @@ jobs:
         id: fetch-epss
         run: |
           curl -s -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
-          "${{ env.DEPENDENCY_TRACK_BASE_URL }}/projects/$project_id/epss" \
+          "${{ env.DEPENDENCY_TRACK_BASE_URL }}/api/v1/finding/project/$project_id" \
           -o epss.json
           echo "EPSS data fetched successfully."
 
-      - name: Convert JSON to XML
-        run: |
-          cat epss.json | jq -r '
-            {"epss_scores": .} | 
-            toxml("epss_data")' > epss.xml
-          echo "EPSS data converted to XML."
-
-      - name: Output EPSS XML
-        run: |
-          cat epss.xml
+      - name: Download Results Dependencies
+        uses: actions/upload-artifact@v3
+        with:
+          name: epss-json
+          path: epss.json
