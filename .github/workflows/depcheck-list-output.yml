@@ -70,7 +70,6 @@ jobs:
         run: |
           trivy fs --format cyclonedx --output sbom.json .
 #          syft . --output cyclonedx-json=sbom.json
-
       - name: Remove Unused Dependencies from SBOM
         run: |
           echo "Removing unused dependencies from SBOM"
@@ -81,7 +80,14 @@ jobs:
 
           # Filter to keep only the used dependencies (exclude the unused ones)
           jq --argjson unused "$unused_json" '
-            .components |= map(select(.name | IN($unused[]) | not))
+            .components |= map(select(
+              .name | 
+              ( 
+                ($unused | index(.)) 
+                or 
+                ($unused | index(split("/")[0])) # Check for group match
+              ) | not
+            ))
           ' sbom.json > filtered_sbom.json
 #     change projectName -> to repo_name
       - name: Upload SBOM to Dependency Track
@@ -97,9 +103,9 @@ jobs:
           autoCreate: true
 
 
- #     - name: Upload Unused Dependencies
- #       uses: actions/upload-artifact@v3
- #       with:
- #         name: filtered-sbom-json
- #         path: filtered_sbom.json
+      - name: Upload Unused Dependencies
+        uses: actions/upload-artifact@v3
+        with:
+          name: filtered-sbom-json
+          path: filtered_sbom.json
           
