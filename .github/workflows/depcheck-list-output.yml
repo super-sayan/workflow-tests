@@ -215,6 +215,6 @@ jobs:
           EOF
 
       - name: Upload EPSS Data as SARIF
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: epss.sarif
