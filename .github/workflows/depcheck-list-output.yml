@@ -217,4 +217,5 @@ jobs:
       - name: Upload EPSS Data as SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
+          github-token: ${{ secrets.PAT }}
           sarif_file: epss.sarif
