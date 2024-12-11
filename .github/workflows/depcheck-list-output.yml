@@ -233,6 +233,12 @@ jobs:
           print("EPSS data converted to SARIF format with fingerprints.")
 
           EOF
+          
+      - name: Check Sarif Generated
+        uses: actions/upload-artifact@v3
+        with:
+          name: epss-sarif
+          path: epss.sarif
 
       - name: Upload EPSS Data as SARIF
         uses: github/codeql-action/upload-sarif@v3
