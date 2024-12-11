@@ -221,9 +221,7 @@ jobs:
                           }
                       }
                   ],
-                  "partialFingerprints": [
-                      fingerprint  # Add the generated fingerprint to the result
-                  ]
+                  "partialFingerprints": fingerprint  # Add the generated fingerprint to the result
               })
 
           # Save as SARIF file
