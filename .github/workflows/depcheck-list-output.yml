@@ -166,7 +166,7 @@ jobs:
                       "tool": {
                           "driver": {
                               "name": "Dependency-Track",
-                              "version": "1.0.0",
+                            "version": "1.0.0",
                               "informationUri": "https://dependency-track.org/",
                               "rules": []
                           }
@@ -176,28 +176,34 @@ jobs:
               ]
           }
 
+          # Track added rules to avoid duplicates
+          added_rules = set()
+
           # Populate SARIF rules and results
           for item in epss_data:
               component = item['component']
               vulnerability = item['vulnerability']
 
-              # Add a rule for each unique vulnerability
-              sarif["runs"][0]["tool"]["driver"]["rules"].append({
-                  "id": vulnerability.get("vulnId", "N/A"),
-                  "name": vulnerability.get("cweName", "N/A"),
-                  "description": {"text": vulnerability.get("description", "N/A")},
-                  "helpUri": f"https://nvd.nist.gov/vuln/detail/{vulnerability['vulnId']}",
-                  "properties": {
-                      "severity": vulnerability.get("severity", "N/A"),
-                      "cvssScore": vulnerability.get("cvssV3BaseScore", "N/A"),
-                      "epssScore": vulnerability.get("epssScore", "N/A")
-                  }
-              })
+              rule_id = vulnerability.get("vulnId", "N/A")
+
+              # Add a rule only if it's unique
+              if rule_id not in added_rules:
+                  sarif["runs"][0]["tool"]["driver"]["rules"].append({
+                      "id": rule_id,
+                      "name": vulnerability.get("cweName", "N/A"),
+                      "helpUri": f"https://nvd.nist.gov/vuln/detail/{rule_id}",
+                      "properties": {
+                          "severity": vulnerability.get("severity", "N/A"),
+                          "cvssScore": vulnerability.get("cvssV3BaseScore", "N/A"),
+                          "epssScore": vulnerability.get("epssScore", "N/A")
+                      }
+                  })
+                  added_rules.add(rule_id)
 
               # Add a result for each finding
               sarif["runs"][0]["results"].append({
-                  "ruleId": vulnerability['vulnId'],
-                  "message": {"text": vulnerability['description']},
+                  "ruleId": rule_id,
+                  "message": {"text": vulnerability.get("description", "N/A")},
                   "locations": [
                       {
                           "physicalLocation": {
