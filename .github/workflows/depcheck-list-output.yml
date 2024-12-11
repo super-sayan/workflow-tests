@@ -152,6 +152,7 @@ jobs:
         run: |
           python - <<EOF
           import json
+          import hashlib
 
           # Load EPSS data
           with open('epss.json', 'r') as f:
@@ -159,14 +160,14 @@ jobs:
 
           # Initialize SARIF structure
           sarif = {
-              "\$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+              "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
               "version": "2.1.0",
               "runs": [
                   {
                       "tool": {
                           "driver": {
                               "name": "Dependency-Track",
-                            "version": "1.0.0",
+                              "version": "1.0.0",
                               "informationUri": "https://dependency-track.org/",
                               "rules": []
                           }
@@ -178,6 +179,12 @@ jobs:
 
           # Track added rules to avoid duplicates
           added_rules = set()
+
+          # Function to generate a fingerprint (hash)
+          def generate_fingerprint(rule_id, component_url):
+              # Create a hash from the rule_id and component URL to ensure it's unique
+              fingerprint_data = f"{rule_id}-{component_url}".encode('utf-8')
+              return hashlib.sha256(fingerprint_data).hexdigest()
 
           # Populate SARIF rules and results
           for item in epss_data:
@@ -200,7 +207,10 @@ jobs:
                   })
                   added_rules.add(rule_id)
 
-              # Add a result for each finding
+              # Generate fingerprint for the result based on ruleId and component's purl
+              fingerprint = generate_fingerprint(rule_id, component['purl'])
+
+              # Add a result for each finding, including the fingerprint
               sarif["runs"][0]["results"].append({
                   "ruleId": rule_id,
                   "message": {"text": vulnerability.get("description", "N/A")},
@@ -210,6 +220,9 @@ jobs:
                               "artifactLocation": {"uri": component['purl']}
                           }
                       }
+                  ],
+                  "partialFingerprints": [
+                      fingerprint  # Add the generated fingerprint to the result
                   ]
               })
 
@@ -217,7 +230,8 @@ jobs:
           with open('epss.sarif', 'w') as f:
               json.dump(sarif, f, indent=2)
 
-          print("EPSS data converted to SARIF format.")
+          print("EPSS data converted to SARIF format with fingerprints.")
+
           EOF
 
       - name: Upload EPSS Data as SARIF
