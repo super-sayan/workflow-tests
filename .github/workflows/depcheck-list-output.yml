@@ -135,8 +135,7 @@ jobs:
         run: |
           curl -s -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
           "${{ env.DEPENDENCY_TRACK_BASE_URL }}/api/v1/finding/project/$project_id" \
-          -H "Accept: application/sarif+json" \
-          -o epss.sarif      
+          -o epss.json      
           echo "EPSS data fetched successfully."
       # -H "Accept: application/sarif+json" \
 
@@ -146,15 +145,24 @@ jobs:
           sudo apt-get install jq
 
           # Parse JSON file and create issues via GitHub API
-          cat epss.sarif | jq -c '.results[]' | while read -r result; do
-            rule_id=$(echo $result | jq -r '.ruleId')
-            message=$(echo $result | jq -r '.message.text')
+          cat epss.json | jq -c '.[]' | while read -r item; do
+            vuln_id=$(echo $item | jq -r '.vulnerability.vulnId')
+            description=$(echo $item | jq -r '.vulnerability.description')
+            severity=$(echo $item | jq -r '.vulnerability.severity')
+            component_name=$(echo $item | jq -r '.component.name')
+            component_version=$(echo $item | jq -r '.component.version')
           
-          # Create issue using GitHub API
-          curl -X POST \
-            -H "Authorization: token ${{ secrets.PAT }}" \
-            -d '{"title": "Issue for '"$rule_id"'", "body": "'"$message"'", "labels": ["bug"]}' \
-            https://api.github.com/repos/${{ github.repository }}/issues
+            # Issue Title: "Vulnerability - CVE ID"
+            title="Vulnerability - $vuln_id ($component_name $component_version)"
+          
+            # Issue Body: Includes description and severity information
+            body="**Vulnerability ID**: $vuln_id\n\n**Description**: $description\n\n**Severity**: $severity"
+          
+            # Create issue using GitHub API
+            curl -X POST \
+              -H "Authorization: token ${{ secrets.PAT }}" \
+              -d '{"title": "'"$title"'", "body": "'"$body"'", "labels": ["security", "'"$severity"'"]}' \
+              https://api.github.com/repos/${{ github.repository }}/issues
           done
       
 #      - name: Upload EPSS Data as SARIF
