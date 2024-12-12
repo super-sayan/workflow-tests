@@ -140,7 +140,7 @@ jobs:
         run: |
           curl -s -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
           "${{ env.DEPENDENCY_TRACK_BASE_URL }}/api/v1/finding/project/$project_id" \
-          -H "Accept: application/sarif+json" 
+          -H "Accept: application/sarif+json" \
           -o epss.sarif
           echo "EPSS data fetched successfully."
 
