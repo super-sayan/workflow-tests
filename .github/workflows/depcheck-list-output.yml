@@ -149,19 +149,29 @@ jobs:
             vuln_id=$(echo $item | jq -r '.vulnerability.vulnId')
             description=$(echo $item | jq -r '.vulnerability.description')
             severity=$(echo $item | jq -r '.vulnerability.severity')
+            epss_score=$(echo $item | jq -r '.vulnerability.epssScore')
             component_name=$(echo $item | jq -r '.component.name')
             component_version=$(echo $item | jq -r '.component.version')
           
+            # Determine EPSS Level
+            if (( $(echo "$epss_score > 0.5" | bc -l) )); then
+              epss_level="High EPSS"
+            elif (( $(echo "$epss_score > 0.2" | bc -l) )); then
+              epss_level="Medium EPSS"
+            else
+              epss_level="Low EPSS"
+            fi
+
             # Issue Title: "Vulnerability - CVE ID"
             title="Vulnerability - $vuln_id ($component_name $component_version)"
           
-            # Issue Body: Includes description and severity information
-            body="**Vulnerability ID**: $vuln_id\n\n**Description**: $description\n\n**Severity**: $severity"
+            # Issue Body: Includes description, severity, and EPSS information
+            body="**Vulnerability ID**: $vuln_id\n\n**Description**: $description\n\n**Severity**: $severity\n\n**EPSS Score**: $epss_score ($epss_level)"
           
             # Create issue using GitHub API
             curl -X POST \
               -H "Authorization: token ${{ secrets.PAT }}" \
-              -d '{"title": "'"$title"'", "body": "'"$body"'", "labels": ["security", "'"$severity"'"]}' \
+              -d '{"title": "'"$title"'", "body": "'"$body"'", "labels": ["security", "'"$severity"'", "'"$epss_level"'"]}' \
               https://api.github.com/repos/${{ github.repository }}/issues
           done
       
