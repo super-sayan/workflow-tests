@@ -135,7 +135,8 @@ jobs:
         run: |
           curl -s -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
           "${{ env.DEPENDENCY_TRACK_BASE_URL }}/api/v1/finding/project/$project_id" \
-          -o epss.json      
+          -H "Accept: application/sarif+json" \
+          -o epss.sarif      
           echo "EPSS data fetched successfully."
       # -H "Accept: application/sarif+json" \
 
@@ -145,7 +146,7 @@ jobs:
           sudo apt-get install jq
 
           # Parse JSON file and create issues via GitHub API
-          cat epss.json | jq -c '.vulnerability[]' | while read -r result; do
+          cat epss.sarif | jq -c '.results[]' | while read -r result; do
             rule_id=$(echo $result | jq -r '.ruleId')
             message=$(echo $result | jq -r '.message.text')
           
