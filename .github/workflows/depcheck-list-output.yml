@@ -6,7 +6,7 @@ env:
   NODE_VERSION: 16.x
   PACKAGE_DIRS: ". ./client ./server"
   DEPENDENCY_TRACK_API_KEY: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
-  DEPENDENCY_TRACK_BASE_URL: "https://6ab0-46-117-151-161.ngrok-free.app"
+  DEPENDENCY_TRACK_BASE_URL: " https://5f3a-62-90-190-70.ngrok-free.app"
   PROJECT_NAME: "Testing Dep-Track Workflow"  # Replace with repo name later
 
 jobs:
@@ -128,7 +128,7 @@ jobs:
                -F "bom=@./filtered_sbom.json"
       
       - name: Fetch Project ID
-        id: fetch-project-id
+        id: fetch-project
         run: |
           project_id=$(curl -s -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
           "${{ env.DEPENDENCY_TRACK_BASE_URL }}/api/v1/project" | jq -r '.[] | select(.name == "${{ env.PROJECT_NAME }}") | .uuid')
@@ -140,114 +140,12 @@ jobs:
         run: |
           curl -s -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
           "${{ env.DEPENDENCY_TRACK_BASE_URL }}/api/v1/finding/project/$project_id" \
+          -H "Accept: application/sarif+json" 
           -o epss.sarif
           echo "EPSS data fetched successfully."
-      
-      - name: Check Sarif Generated
-        uses: actions/upload-artifact@v3
-        with:
-          name: epss-sarif
-          path: epss.sarif
-          
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
-      - name: Convert JSON to SARIF
-        run: |
-          python - <<EOF
-          import json
-          import hashlib
-
-          # Load EPSS data
-          with open('epss.json', 'r') as f:
-              epss_data = json.load(f)
-
-          # Initialize SARIF structure
-          sarif = {
-              "\$schema": "https://json.schemastore.org/sarif-2.1.0.json",
-              "version": "2.1.0",
-              "runs": [
-                  {
-                      "tool": {
-                          "driver": {
-                              "name": "Dependency-Track",
-                              "version": "1.0.0",
-                              "informationUri": "https://dependency-track.org/",
-                              "rules": []
-                          }
-                      },
-                      "results": []
-                  }
-              ]
-          }
-
-          # Track added rules to avoid duplicates
-          added_rules = set()
-
-          # Function to generate a fingerprint (hash)
-          def generate_fingerprint(rule_id, component_url):
-              # Create a hash from the rule_id and component URL to ensure it's unique
-              fingerprint_data = f"{rule_id}-{component_url}".encode('utf-8')
-              return hashlib.sha256(fingerprint_data).hexdigest()
-
-          # Populate SARIF rules and results
-          for item in epss_data:
-              component = item['component']
-              vulnerability = item['vulnerability']
-
-              rule_id = vulnerability.get("vulnId", "N/A")
-
-              # Add a rule only if it's unique
-              if rule_id not in added_rules:
-                  sarif["runs"][0]["tool"]["driver"]["rules"].append({
-                      "id": rule_id,
-                      "name": vulnerability.get("cweName", "N/A"),
-                      "helpUri": f"https://nvd.nist.gov/vuln/detail/{rule_id}",
-                      "properties": {
-                          "severity": vulnerability.get("severity", "N/A"),
-                          "cvssScore": vulnerability.get("cvssV3BaseScore", "N/A"),
-                          "epssScore": vulnerability.get("epssScore", "N/A")
-                      }
-                  })
-                  added_rules.add(rule_id)
-
-              # Generate fingerprint for the result based on ruleId and component's purl
-              fingerprint = generate_fingerprint(rule_id, component['purl'])
-
-              # Add a result for each finding, including the fingerprint
-              sarif["runs"][0]["results"].append({
-                  "ruleId": rule_id,
-                  "message": {"text": vulnerability.get("description", "N/A")},
-                  "locations": [
-                      {
-                          "physicalLocation": {
-                              "artifactLocation": {"uri": component['purl']}
-                          }
-                      }
-                  ],
-                  "partialFingerprints": {
-                      "fingerprint-key": fingerprint  # Add the generated fingerprint to the result
-                  }
-              })
-
-          # Save as SARIF file
-          with open('epss.sarif', 'w') as f:
-              json.dump(sarif, f, indent=2)
-
-          print("EPSS data converted to SARIF format with fingerprints.")
-
-          EOF
-          
-      - name: Check Sarif Generated
-        uses: actions/upload-artifact@v3
-        with:
-          name: epss-sarif
-          path: epss.sarif
 
       - name: Upload EPSS Data as SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
           token: ${{ secrets.PAT }}
-          sarif_file: ${{ steps.scan.outputs.sarif }}
+          sarif_file: epss.sarif # sarif_file: ${{ steps.fetch-project.outputs.epss }}
