@@ -140,9 +140,15 @@ jobs:
         run: |
           curl -s -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
           "${{ env.DEPENDENCY_TRACK_BASE_URL }}/api/v1/finding/project/$project_id" \
-          -o epss.json
+          -o epss.sarif
           echo "EPSS data fetched successfully."
-
+      
+      - name: Check Sarif Generated
+        uses: actions/upload-artifact@v3
+        with:
+          name: epss-sarif
+          path: epss.sarif
+          
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -244,4 +250,4 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           token: ${{ secrets.PAT }}
-          sarif_file: epss.sarif
+          sarif_file: ${{ steps.scan.outputs.sarif }}
