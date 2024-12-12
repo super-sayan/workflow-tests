@@ -139,53 +139,10 @@ jobs:
           -o epss.sarif
           echo "EPSS data fetched successfully."
       
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
-      - name: Convert JSON to SARIF
-        run: |
-          python - <<EOF
-          import json
-
-          # Load the SARIF file (input file)
-          with open('epss.sarif', 'r') as file:
-              sarif_data = json.load(file)
-
-          # Iterate over the runs in the SARIF file
-          for run in sarif_data['runs']:
-              tool = run['tool']
-              rules = tool['driver']['rules']
-              results = run['results']
-
-              # Create a mapping from ruleId to level from the results
-              rule_level_map = {}
-              for result in results:
-                  rule_id = result['ruleId']
-                  level = result['level']
-                  rule_level_map[rule_id] = level
-
-              # Add the level from results to the corresponding rules
-              for rule in rules:
-                  rule_id = rule['id']
-                  if rule_id in rule_level_map:
-                      if 'defaultConfiguration' not in rule:
-                          rule['defaultConfiguration'] = {}
-                      rule['defaultConfiguration']['level'] = rule_level_map[rule_id]
-
-          # Save the modified SARIF file (output file)
-          with open('modified_epss.sarif', 'w') as outfile:
-              json.dump(sarif_data, outfile, indent=4)
-
-          print("SARIF file has been modified and saved as 'modified_epss.sarif'")
-
-          EOF
-
       - name: Upload EPSS Data as SARIF
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/sarif-action@v2
         with:
           token: ${{ secrets.PAT }}
-          sarif_file: modified_epss.sarif # sarif_file: ${{ steps.fetch-project.outputs.epss }}
+          sarif_file: epss.sarif # sarif_file: ${{ steps.fetch-project.outputs.epss }}
           category: dependency-track
 
