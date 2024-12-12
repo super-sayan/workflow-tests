@@ -135,14 +135,30 @@ jobs:
         run: |
           curl -s -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
           "${{ env.DEPENDENCY_TRACK_BASE_URL }}/api/v1/finding/project/$project_id" \
-          -H "Accept: application/sarif+json" \
-          -o epss.sarif
+          -o epss.json      # -H "Accept: application/sarif+json" \
           echo "EPSS data fetched successfully."
+
+      - name: Parse JSON and create issues
+        run: |
+          # Install jq for JSON parsing
+          sudo apt-get install jq
+
+          # Parse JSON file and create issues via GitHub API
+          cat epss.json | jq -c '.results[]' | while read -r result; do
+            rule_id=$(echo $result | jq -r '.ruleId')
+            message=$(echo $result | jq -r '.message.text')
+          
+          # Create issue using GitHub API
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.PAT }}" \
+            -d '{"title": "Issue for '"$rule_id"'", "body": "'"$message"'", "labels": ["bug"]}' \
+            https://api.github.com/repos/${{ github.repository }}/issues
+          done
       
-      - name: Upload EPSS Data as SARIF
-        uses: github/sarif-action@v2
-        with:
-          token: ${{ secrets.PAT }}
-          sarif_file: epss.sarif # sarif_file: ${{ steps.fetch-project.outputs.epss }}
-          category: dependency-track
+#      - name: Upload EPSS Data as SARIF
+#        uses: github/sarif-action@v2
+#        with:
+#          token: ${{ secrets.PAT }}
+#          sarif_file: epss.sarif # sarif_file: ${{ steps.fetch-project.outputs.epss }}
+#          category: dependency-track
 
