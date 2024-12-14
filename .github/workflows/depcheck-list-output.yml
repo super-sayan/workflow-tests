@@ -152,7 +152,7 @@ jobs:
             epss_score=$(echo $item | jq -r '.vulnerability.epssScore')
             component_name=$(echo $item | jq -r '.component.name')
             component_version=$(echo $item | jq -r '.component.version')
-          
+
             # Determine EPSS Level
             if (( $(echo "$epss_score > 0.5" | bc -l) )); then
               epss_level="High EPSS"
@@ -162,12 +162,12 @@ jobs:
               epss_level="Low EPSS"
             fi
 
-            # Issue Title: "Vulnerability - CVE ID"
+            # Ensure unique issue title by appending the vulnerability ID
             title="Vulnerability - $vuln_id ($component_name $component_version)"
-          
+
             # Issue Body: Includes description, severity, and EPSS information
             body="**Vulnerability ID**: $vuln_id\n\n**Description**: $description\n\n**Severity**: $severity\n\n**EPSS Score**: $epss_score ($epss_level)"
-          
+
             # Create issue using GitHub API
             curl -X POST \
               -H "Authorization: token ${{ secrets.PAT }}" \
