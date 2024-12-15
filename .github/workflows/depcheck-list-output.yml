@@ -156,8 +156,6 @@ jobs:
           python - <<EOF
           import json
           import hashlib
-          
-          
           def generate_fingerprint(purl, vuln_id):
               """
               Generate a unique fingerprint based on the package URL (purl) and vulnerability ID.
@@ -168,9 +166,6 @@ jobs:
           
           
           def transform_to_sarif(dependency_track_json, output_file_path):
-              """
-              Transforms Dependency Track JSON output to SARIF format while handling duplicates.
-              """
               with open(dependency_track_json, 'r') as file:
                   vulnerabilities = json.load(file)
           
@@ -191,14 +186,15 @@ jobs:
               }
           
               unique_rules = {}
+              unique_results = set()  # Track unique results to avoid duplication
+          
               for entry in vulnerabilities:
                   component = entry["component"]
                   vulnerability = entry["vulnerability"]
                   
-                  # Create a unique rule ID using CVE ID and package version
+                  # Create unique rule ID
                   unique_rule_id = f"{vulnerability['vulnId']}-{component['version']}"
                   if unique_rule_id not in unique_rules:
-                      # Add the rule if it's unique
                       rule = {
                           "id": unique_rule_id,
                           "properties": {
@@ -211,47 +207,50 @@ jobs:
                       }
                       unique_rules[unique_rule_id] = rule
           
-                  # Add the result
-                  result = {
-                      "ruleId": unique_rule_id,
-                      "message": {
-                          "text": vulnerability["description"]
-                      },
-                      "locations": [
-                          {
-                              "physicalLocation": {
-                                  "artifactLocation": {
-                                      "uri": "package.json"
-                                  },
-                                  "region": {
-                                      "startLine": 1,
-                                      "startColumn": 1,
-                                      "endColumn": 1
+                  # Generate consistent fingerprint
+                  fingerprint = generate_fingerprint(
+                      component["purl"], vulnerability["vulnId"], "package.json", 1, 1
+                  )
+          
+                  # Avoid duplicate results
+                  result_key = f"{unique_rule_id}:{fingerprint}"
+                  if result_key not in unique_results:
+                      result = {
+                          "ruleId": unique_rule_id,
+                          "message": {
+                              "text": vulnerability["description"]
+                          },
+                          "locations": [
+                              {
+                                  "physicalLocation": {
+                                      "artifactLocation": {
+                                          "uri": "package.json"
+                                      },
+                                      "region": {
+                                          "startLine": 1,
+                                          "startColumn": 1,
+                                          "endColumn": 1
+                                      }
                                   }
                               }
+                          ],
+                          "partialFingerprints": {
+                              "primaryLocationLineHash": fingerprint
                           }
-                      ],
-                      "partialFingerprints": {
-                          "primaryLocationLineHash": generate_fingerprint(
-                              component["purl"], vulnerability["vulnId"]
-                          )
                       }
-                  }
-                  sarif["runs"][0]["results"].append(result)
+                      sarif["runs"][0]["results"].append(result)
+                      unique_results.add(result_key)
           
-              # Add unique rules to the SARIF file
+              # Add rules
               sarif["runs"][0]["tool"]["driver"]["rules"] = list(unique_rules.values())
           
-              # Save the SARIF file
+              # Save SARIF
               with open(output_file_path, 'w') as file:
                   json.dump(sarif, file, indent=2)
           
               print(f"SARIF file saved to {output_file_path}")
-          
-          
-          # Example Usage
+              
           transform_to_sarif("epss.json", "epss.sarif")
-
           EOF
 
 
