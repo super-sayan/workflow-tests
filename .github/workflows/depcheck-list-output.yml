@@ -6,7 +6,7 @@ env:
   NODE_VERSION: 16.x
   PACKAGE_DIRS: ". ./client ./server"
   DEPENDENCY_TRACK_API_KEY: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
-  DEPENDENCY_TRACK_BASE_URL: "https://5f3a-62-90-190-70.ngrok-free.app"
+  DEPENDENCY_TRACK_BASE_URL: ${{ secrets.API_URL }}
   PROJECT_NAME: "Testing Dep-Track Workflow"  # Replace with repo name later
 
 jobs:
