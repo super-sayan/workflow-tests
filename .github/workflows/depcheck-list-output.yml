@@ -147,7 +147,7 @@ jobs:
 #          path: epss.json       
       
       - name: Upload EPSS Data as SARIF
-        uses: github/sarif-action@v2
+        uses: github/codeql-action/sarif-action@v3
         with:
           token: ${{ secrets.PAT }}
           sarif_file: epss.sarif # sarif_file: ${{ steps.fetch-project.outputs.epss }}
