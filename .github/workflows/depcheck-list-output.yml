@@ -207,6 +207,8 @@ jobs:
           
           # Example Usage
           convert_logical_to_physical("epss.sarif", "epss_modified.sarif")
+          EOF
+          
       # Official Github Action for uploading results in sarif format to Github Security tab.
       - name: Upload EPSS Data as SARIF
         uses: github/codeql-action/upload-sarif@v3
