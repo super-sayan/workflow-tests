@@ -206,7 +206,7 @@ jobs:
                               "kind": "path-problem",
                               "name": vulnerability.get("cweName", "Unknown CWE"),
                               "problem.severity": vulnerability["severity"].lower(),
-                              "security-severity": vulnerability["cvssV3BaseScore"],
+                              "security-severity": vulnerability.get("cvssV3BaseScore", 0),
                           }
                       }
                       unique_rules[unique_rule_id] = rule
@@ -250,7 +250,7 @@ jobs:
           
           
           # Example Usage
-          transform_to_sarif("dependency_track_output.json", "output.sarif")
+          transform_to_sarif("epss.json", "epss.sarif")
 
           EOF
 
