@@ -142,8 +142,7 @@ jobs:
         run: |
           curl -s -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
           "${{ env.DEPENDENCY_TRACK_BASE_URL }}/api/v1/finding/project/$project_id" \
-          -H "Accept: application/sarif+json" \
-          -o epss.sarif      
+          -o epss.json  # -H "Accept: application/sarif+json" \
           echo "EPSS data fetched successfully."
 
       - name: Set up Python
@@ -157,79 +156,105 @@ jobs:
           import json
           import hashlib
           
-          def generate_fingerprint(start_line, start_column, end_line, end_column):
+          
+          def generate_fingerprint(purl, vuln_id):
               """
-              Generates a fingerprint using line and column information.
+              Generate a unique fingerprint based on the package URL (purl) and vulnerability ID.
               
               Args:
-                  start_line (int): Start line of the issue.
-                  start_column (int): Start column of the issue.
-                  end_line (int): End line of the issue.
-                  end_column (int): End column of the issue.
-          
-              Returns:
-                  str: A hashed fingerprint string.
-              """
-              data = f"{start_line}:{start_column}-{end_line}:{end_column}"
-              hash_object = hashlib.sha256(data.encode())
-              return hash_object.hexdigest()[:16]  # Truncate hash for brevity
-          
-          def update_sarif_with_fingerprints(sarif_file_path, output_file_path):
-              """
-              Updates SARIF locations and generates partialFingerprints for each result.
-              
-              Args:
-                  sarif_file_path (str): Path to the input SARIF file.
-                  output_file_path (str): Path to save the updated SARIF file.
-              """
-              try:
-                  # Load the SARIF file
-                  with open(sarif_file_path, 'r') as file:
-                      sarif_data = json.load(file)
+                  purl (str): Package URL.
+                  vuln_id (str): Vulnerability ID.
                   
-                  # Process each result in the SARIF file
-                  for run in sarif_data.get("runs", []):
-                      for result in run.get("results", []):
-                          for location in result.get("locations", []):
-                              # Define region parameters
-                              start_line = 308
-                              start_column = 1
-                              end_line = 311
-                              end_column = 1
-                              
-                              # Replace logicalLocations with physicalLocation pointing to package.json
-                              location["physicalLocation"] = {
+              Returns:
+                  str: Truncated SHA256 hash.
+              """
+              data = f"{purl}:{vuln_id}"
+              hash_object = hashlib.sha256(data.encode())
+              return hash_object.hexdigest()[:16]
+          
+          
+          def transform_to_sarif(dependency_track_json, output_file_path):
+              """
+              Transforms Dependency Track JSON output to SARIF format.
+              
+              Args:
+                  dependency_track_json (str): Path to Dependency Track JSON file.
+                  output_file_path (str): Path to save the SARIF file.
+              """
+              with open("epss.json", 'r') as file:
+                  vulnerabilities = json.load(file)
+              
+              sarif = {
+                  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+                  "version": "2.1.0",
+                  "runs": [
+                      {
+                          "tool": {
+                              "driver": {
+                                  "name": "Dependency Track",
+                                  "rules": []
+                              }
+                          },
+                          "results": []
+                      }
+                  ]
+              }
+              
+              # Mapping vulnerabilities to SARIF rules and results
+              for entry in vulnerabilities:
+                  component = entry["component"]
+                  vulnerability = entry["vulnerability"]
+                  
+                  # Add a rule for each unique vulnerability
+                  rule = {
+                      "id": vulnerability["vulnId"],
+                      "properties": {
+                          "id": vulnerability["vulnId"],
+                          "kind": "path-problem",
+                          "name": vulnerability.get("cweName", "Unknown CWE"),
+                          "problem.severity": vulnerability["severity"].lower(),
+                          "security-severity": vulnerability.get("cvssV3BaseScore", 0),
+                      }
+                  }
+                  sarif["runs"][0]["tool"]["driver"]["rules"].append(rule)
+                  
+                  # Add a result for each vulnerability instance
+                  result = {
+                      "ruleId": vulnerability["vulnId"],
+                      "message": {
+                          "text": vulnerability["description"]
+                      },
+                      "locations": [
+                          {
+                              "physicalLocation": {
                                   "artifactLocation": {
-                                      "uri": "package.json",
-                                      "uriBaseId": "ROOTPATH"
+                                      "uri": "package.json"
                                   },
                                   "region": {
-                                      "startLine": start_line,
-                                      "startColumn": start_column,
-                                      "endLine": end_line,
-                                      "endColumn": end_column
+                                      "startLine": 1,
+                                      "startColumn": 1,
+                                      "endColumn": 1
                                   }
                               }
-                              # Remove logicalLocations (if present)
-                              location.pop("logicalLocations", None)
-                          
-                          # Generate and add partialFingerprints
-                          fingerprint = generate_fingerprint(start_line, start_column, end_line, end_column)
-                          result["partialFingerprints"] = {
-                              "primaryLocationLineHash": fingerprint
                           }
-                  
-                  # Save the updated SARIF data
-                  with open(output_file_path, 'w') as file:
-                      json.dump(sarif_data, file, indent=2)
-                  
-                  print(f"Updated SARIF file with fingerprints saved to {output_file_path}")
+                      ],
+                      "partialFingerprints": {
+                          "primaryLocationLineHash": generate_fingerprint(
+                              component["purl"], vulnerability["vulnId"]
+                          )
+                      }
+                  }
+                  sarif["runs"][0]["results"].append(result)
+              
+              # Save SARIF file
+              with open(output_file_path, 'w') as file:
+                  json.dump(sarif, file, indent=2)
+              
+              print(f"SARIF file saved to {output_file_path}")
           
-              except Exception as e:
-                  print(f"Error updating SARIF file: {e}")
           
-          # Example usage
-          update_sarif_with_fingerprints("epss.sarif", "epss_updated.sarif")
+          # Example Usage
+          transform_to_sarif("dependency_track_output.json", "epss.sarif")
 
           EOF
 
