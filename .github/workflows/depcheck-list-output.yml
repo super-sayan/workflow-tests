@@ -138,7 +138,13 @@ jobs:
           -o epss.json      
           echo "EPSS data fetched successfully."
       # -H "Accept: application/sarif+json" \
-
+      
+      - name: Download Results Dependencies
+        uses: actions/upload-artifact@v3
+        with:
+          name: epss-json
+          path: epss.json
+          
       - name: Parse JSON and create issues
         run: |
           # Install jq for JSON parsing
