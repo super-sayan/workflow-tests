@@ -156,9 +156,9 @@ jobs:
           python - <<EOF
           import json
           
-          def update_sarif_with_package_json(sarif_file_path, output_file_path):
+          def update_sarif_with_package_json_and_rules(sarif_file_path, output_file_path):
               """
-              Updates SARIF locations to point to the root 'package.json' file for all dependencies.
+              Updates SARIF locations to point to the root 'package.json' file and ensures rules include defaultConfiguration.
           
               Args:
                   sarif_file_path (str): Path to the input SARIF file.
@@ -168,10 +168,20 @@ jobs:
                   # Load the SARIF file
                   with open(sarif_file_path, 'r') as file:
                       sarif_data = json.load(file)
-                  
+          
+                  # Collect rule levels from results to update rules
+                  rule_levels = {}
+          
                   # Process each result in the SARIF file
                   for run in sarif_data.get("runs", []):
                       for result in run.get("results", []):
+                          rule_id = result.get("ruleId")
+                          level = result.get("level", "error")  # Default to "error" if not specified
+          
+                          # Map rule ID to level
+                          if rule_id:
+                              rule_levels[rule_id] = level
+          
                           for location in result.get("locations", []):
                               # Replace logicalLocations with physicalLocation pointing to package.json
                               location["physicalLocation"] = {
@@ -189,18 +199,26 @@ jobs:
                               # Remove logicalLocations (if present)
                               location.pop("logicalLocations", None)
           
+                      # Update rules to include defaultConfiguration
+                      driver = run.get("tool", {}).get("driver", {})
+                      for rule in driver.get("rules", []):
+                          rule_id = rule.get("id")
+                          if rule_id and rule_id in rule_levels:
+                              rule["defaultConfiguration"] = {"level": rule_levels[rule_id]}
+          
                   # Save the updated SARIF data
                   with open(output_file_path, 'w') as file:
                       json.dump(sarif_data, file, indent=2)
-                  
+          
                   print(f"Updated SARIF file saved to {output_file_path}")
           
               except Exception as e:
                   print(f"Error updating SARIF file: {e}")
           
           # Example usage
-          update_sarif_with_package_json("epss.sarif", "epss_updated.sarif")
+          update_sarif_with_package_json_and_rules("epss.sarif", "epss_updated.sarif")
           EOF
+
 
 # Action for downloading json/sarif result files for errors handling.      
 #      - name: Download Results Dependencies
