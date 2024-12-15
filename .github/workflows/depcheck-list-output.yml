@@ -155,11 +155,29 @@ jobs:
         run: |
           python - <<EOF
           import json
+          import hashlib
           
-          def update_sarif_with_package_json_and_rules(sarif_file_path, output_file_path):
+          def generate_fingerprint(start_line, start_column, end_line, end_column):
               """
-              Updates SARIF locations to point to the root 'package.json' file and ensures rules include defaultConfiguration.
+              Generates a fingerprint using line and column information.
+              
+              Args:
+                  start_line (int): Start line of the issue.
+                  start_column (int): Start column of the issue.
+                  end_line (int): End line of the issue.
+                  end_column (int): End column of the issue.
           
+              Returns:
+                  str: A hashed fingerprint string.
+              """
+              data = f"{start_line}:{start_column}-{end_line}:{end_column}"
+              hash_object = hashlib.sha256(data.encode())
+              return hash_object.hexdigest()[:16]  # Truncate hash for brevity
+          
+          def update_sarif_with_fingerprints(sarif_file_path, output_file_path):
+              """
+              Updates SARIF locations and generates partialFingerprints for each result.
+              
               Args:
                   sarif_file_path (str): Path to the input SARIF file.
                   output_file_path (str): Path to save the updated SARIF file.
@@ -168,21 +186,17 @@ jobs:
                   # Load the SARIF file
                   with open(sarif_file_path, 'r') as file:
                       sarif_data = json.load(file)
-          
-                  # Collect rule levels from results to update rules
-                  rule_levels = {}
-          
+                  
                   # Process each result in the SARIF file
                   for run in sarif_data.get("runs", []):
                       for result in run.get("results", []):
-                          rule_id = result.get("ruleId")
-                          level = result.get("level", "error")  # Default to "error" if not specified
-          
-                          # Map rule ID to level
-                          if rule_id:
-                              rule_levels[rule_id] = level
-          
                           for location in result.get("locations", []):
+                              # Define region parameters
+                              start_line = 308
+                              start_column = 1
+                              end_line = 311
+                              end_column = 1
+                              
                               # Replace logicalLocations with physicalLocation pointing to package.json
                               location["physicalLocation"] = {
                                   "artifactLocation": {
@@ -190,33 +204,33 @@ jobs:
                                       "uriBaseId": "ROOTPATH"
                                   },
                                   "region": {
-                                      "startLine": 308,
-                                      "startColumn": 1,
-                                      "endLine": 311,
-                                      "endColumn": 1
+                                      "startLine": start_line,
+                                      "startColumn": start_column,
+                                      "endLine": end_line,
+                                      "endColumn": end_column
                                   }
                               }
                               # Remove logicalLocations (if present)
                               location.pop("logicalLocations", None)
-          
-                      # Update rules to include defaultConfiguration
-                      driver = run.get("tool", {}).get("driver", {})
-                      for rule in driver.get("rules", []):
-                          rule_id = rule.get("id")
-                          if rule_id and rule_id in rule_levels:
-                              rule["defaultConfiguration"] = {"level": rule_levels[rule_id]}
-          
+                          
+                          # Generate and add partialFingerprints
+                          fingerprint = generate_fingerprint(start_line, start_column, end_line, end_column)
+                          result["partialFingerprints"] = {
+                              "primaryLocationLineHash": fingerprint
+                          }
+                  
                   # Save the updated SARIF data
                   with open(output_file_path, 'w') as file:
                       json.dump(sarif_data, file, indent=2)
-          
-                  print(f"Updated SARIF file saved to {output_file_path}")
+                  
+                  print(f"Updated SARIF file with fingerprints saved to {output_file_path}")
           
               except Exception as e:
                   print(f"Error updating SARIF file: {e}")
           
           # Example usage
-          update_sarif_with_package_json_and_rules("epss.sarif", "epss_updated.sarif")
+          update_sarif_with_fingerprints("epss.sarif", "epss_updated.sarif")
+
           EOF
 
 
