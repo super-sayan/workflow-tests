@@ -142,9 +142,10 @@ jobs:
         run: |
           curl -s -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
           "${{ env.DEPENDENCY_TRACK_BASE_URL }}/api/v1/finding/project/$project_id" \
-          -o epss.json  # -H "Accept: application/sarif+json" \
+          -o epss.json  
           echo "EPSS data fetched successfully." 
-
+      # -H "Accept: application/sarif+json" \
+      
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
