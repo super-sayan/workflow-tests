@@ -7,7 +7,7 @@ env:
   PACKAGE_DIRS: ". ./client ./server" # Directories where package.json files are located on my local repo, don't need it in future versions
   DEPENDENCY_TRACK_API_KEY: ${{ secrets.DEPENDENCYTRACK_APIKEY }} # API Key for using Dependecy Track API
   DEPENDENCY_TRACK_BASE_URL: ${{ secrets.API_URL }} # URL of Dependency Track API server
-  PROJECT_NAME: "Testing Dep-Track Workflow"  # Replace with repo name later
+  PROJECT_NAME: ${{ github.repository }}  # Replace with repo name later
 
 jobs:
   code_analysis:
