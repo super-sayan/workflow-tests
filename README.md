@@ -8,7 +8,7 @@ After extracting the archive you have to create an .env file under server folder
 
 ```
 DATABASE_USER=postgres
-DATABASE_PASSWORD=9271
+DATABASE_PASSWORD=****
 DATABASE_HOST=*depends on usage type*
 DATABASE_PORT=5432
 DATABASE_NAME=AppointmentDB
