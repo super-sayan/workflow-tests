@@ -28,6 +28,7 @@ jobs:
             npm install
             cd - || exit
           done
+          echo ${{ github.repository }}
         shell: bash
 
       - name: Run Depcheck for All Directories
