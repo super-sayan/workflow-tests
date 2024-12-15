@@ -157,79 +157,51 @@ jobs:
         run: |
           python - <<EOF
           import json
-          
-          def correct_sarif_locations(sarif_file_path, output_file_path):
+
+          def update_sarif_with_package_json(sarif_file_path, output_file_path):
               """
-              Corrects the SARIF file to include properly defined location objects.
-              
+              Updates SARIF locations to point to the root 'package.json' file for all dependencies.
+
               Args:
                   sarif_file_path (str): Path to the input SARIF file.
-                  output_file_path (str): Path to save the corrected SARIF file.
+                  output_file_path (str): Path to save the updated SARIF file.
               """
               try:
                   # Load the SARIF file
                   with open(sarif_file_path, 'r') as file:
                       sarif_data = json.load(file)
-                  
-                  # Iterate through the SARIF runs and results
+
+                  # Process each result in the SARIF file
                   for run in sarif_data.get("runs", []):
                       for result in run.get("results", []):
                           for location in result.get("locations", []):
-                              logical_locations = location.pop("logicalLocations", None)
-                              
-                              # If logicalLocations exist, infer physicalLocation
-                              if logical_locations:
-                                  fq_name = logical_locations[0].get("fullyQualifiedName", "")
-                                  # Infer a file path based on the logical location
-                                  file_path = infer_file_path(fq_name)
-                                  
-                                  # Add a properly formatted location
-                                  location.update({
-                                      "id": 1,  # Unique ID for the location
-                                      "physicalLocation": {
-                                          "artifactLocation": {
-                                              "uri": file_path
-                                          },
-                                          "region": {
-                                              "startLine": 1,
-                                              "startColumn": 1,
-                                              "endLine": 1,
-                                              "endColumn": 1
-                                          }
-                                      },
-                                      "message": {
-                                          "text": f"Location inferred from {fq_name}"
-                                      }
-                                  })
-          
-                  # Save the corrected SARIF data
+                              # Replace logicalLocations with physicalLocation pointing to package.json
+                              location["physicalLocation"] = {
+                                  "artifactLocation": {
+                                      "uri": "client/package.json"
+                                  },
+                                  "region": {
+                                      "startLine": 1,
+                                      "startColumn": 1,
+                                      "endColumn": 80  # Arbitrary column range for clarity
+                                  }
+                              }
+                              # Remove logicalLocations (if present)
+                              location.pop("logicalLocations", None)
+
+                  # Save the updated SARIF data
                   with open(output_file_path, 'w') as file:
                       json.dump(sarif_data, file, indent=2)
-                  
-                  print(f"Corrected SARIF file saved to {output_file_path}")
-          
-              except Exception as e:
-                  print(f"Error processing SARIF file: {e}")
-          
-          def infer_file_path(fq_name):
-              """
-              Infer a file path from the fullyQualifiedName (fq_name).
-          
-              Args:
-                  fq_name (str): Fully qualified name from logicalLocations.
-          
-              Returns:
-                  str: Inferred file path.
-              """
-              if fq_name.startswith("pkg:"):
-                  package_name = fq_name.split("/")[-1].split("@")[0]
-                  return f"src/{package_name}.js"
-              return "unknown_file.json"
-          
-          # Example usage
-          correct_sarif_locations("epss.sarif", "epss_corrected.sarif")
 
+                  print(f"Updated SARIF file saved to {output_file_path}")
+
+              except Exception as e:
+                  print(f"Error updating SARIF file: {e}")
+
+          # Example usage
+          update_sarif_with_package_json("epss.sarif", "epss_updated.sarif")
           EOF
+
 
           
       # Official Github Action for uploading results in sarif format to Github Security tab.
@@ -237,7 +209,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           token: ${{ secrets.PAT }}
-          sarif_file: epss_corrected.sarif # sarif_file: ${{ steps.fetch-project.outputs.epss }}
+          sarif_file: epss_updated.sarif # sarif_file: ${{ steps.fetch-project.outputs.epss }}
           category: dependency-track
       
       # This code is used to create issues from epps.json results file if we won't succeed in  finding solution for uploading results to security tab.
