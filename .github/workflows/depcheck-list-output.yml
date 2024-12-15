@@ -3,10 +3,10 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: 16.x
-  PACKAGE_DIRS: ". ./client ./server"
-  DEPENDENCY_TRACK_API_KEY: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
-  DEPENDENCY_TRACK_BASE_URL: ${{ secrets.API_URL }}
+  NODE_VERSION: 16.x # Node.js version
+  PACKAGE_DIRS: ". ./client ./server" # Directories where package.json files are located on my local repo, don't need it in future versions
+  DEPENDENCY_TRACK_API_KEY: ${{ secrets.DEPENDENCYTRACK_APIKEY }} # API Key for using Dependecy Track API
+  DEPENDENCY_TRACK_BASE_URL: ${{ secrets.API_URL }} # URL of Dependency Track API server
   PROJECT_NAME: "Testing Dep-Track Workflow"  # Replace with repo name later
 
 jobs:
@@ -14,14 +14,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Define repo for output of results.
       - name: Checkout Code
         uses: actions/checkout@v3
-
+      # Define Programming Language.
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
-
+      
+      # Installing dependencies from package.json files of repo.
       - name: Install Dependencies
         run: |
           for dir in ${{ env.PACKAGE_DIRS }}; do
@@ -31,7 +33,8 @@ jobs:
             cd - || exit
           done
         shell: bash
-
+      
+      # Running Dependecy Check to define unused dependencies and create txt of unused deps.
       - name: Run Depcheck and Write to List
         run: |
           echo "Unused Dependencies:" > unused_dependencies.txt
@@ -40,7 +43,7 @@ jobs:
             cd "$dir" || exit
             output=$(npx depcheck || true)
       
-            # Parse and annotate unused dependencies
+            # Parse and annotate unused dependencies.
             if echo "$output" | grep -q "Unused dependencies"; then
               echo "$output" | sed -n '/Unused dependencies/,$p' | while IFS= read -r line; do
                 if [[ $line == "*"* ]]; then
@@ -50,7 +53,7 @@ jobs:
               done
             fi
 
-            # Parse and annotate unused devDependencies
+            # Parse and annotate unused devDependencies.
             if echo "$output" | grep -q "Unused devDependencies"; then
               echo "$output" | sed -n '/Unused devDependencies/,$p' | while IFS= read -r line; do
                 if [[ $line == "*"* ]]; then
@@ -63,24 +66,25 @@ jobs:
           done
           cat unused_dependencies.txt
       
+      # Installing Trivy for SBOM generation.
       - name: Install Trivy for SBOM Generation
         run: |
           curl -sSL https://github.com/aquasecurity/trivy/releases/download/v0.58.0/trivy_0.58.0_Linux-64bit.tar.gz | sudo tar xz -C /usr/local/bin
-
-#          curl -sSL https://github.com/anchore/syft/releases/download/v1.17.0/syft_1.17.0_linux_amd64.tar.gz | tar xz -C /usr/local/bin syft
-
+      
+      # Generating SBOM using Trivy.
       - name: Generate SBOM using Trivy
         run: |
           trivy fs --format cyclonedx --output sbom.json .
-#          syft . --output cyclonedx-json=sbom.json
+
+      # Remove unused dependecies from generated SBOM.
       - name: Remove Unused Dependencies from SBOM
         run: |
           echo "Removing unused dependencies from SBOM"
     
-          # Read unused dependencies into a list
+          # Read unused dependencies into a list.
           unused_deps=$(cat unused_dependencies.txt)
     
-          # Convert the list into a JSON array of objects with `group` and `name`
+          # Convert the list into a JSON array of objects with `group` and `name`.
           unused_json=$(echo "$unused_deps" | jq -R -s '
             split("\n") | 
             map(select(length > 0)) |
@@ -91,7 +95,7 @@ jobs:
                 end)
           ')
 
-          # Filter components, matching against both `group` and `name`
+          # Filter components, matching against both `group` and `name`.
           jq --argjson unused "$unused_json" '
             .components |= map(select(
               .name as $name | 
@@ -99,8 +103,8 @@ jobs:
               ($unused | map(.name == $name and .group == $group) | any) | not
             ))
           ' sbom.json > filtered_sbom.json
-
-
+   
+   # An official Dependecy Track action for SBOM upload, doesn't work good with full URL of Dep Track Server.
    #   - name: Upload SBOM to Dependency Track
    #     uses: DependencyTrack/gh-upload-sbom@v3
    #     with:
@@ -110,7 +114,8 @@ jobs:
    #       projectVersion: '1.0.0'
    #       bomFilename: "./filtered_sbom.json" # Adjust path if needed
    #       autoCreate: true
-   
+
+      # Uploading SBOM to Dependency Track for analysis.   
       - name: Upload SBOM to Dependency Track
         id: SBOM-upload
         run: |
@@ -121,7 +126,8 @@ jobs:
                -F "projectName=${{ env.PROJECT_NAME }}" \
                -F "projectVersion=1.0.0" \
                -F "bom=@./filtered_sbom.json"
-      
+
+      # Getting uuid of Project, that we have created on the previous step.
       - name: Fetch Project ID
         id: fetch-project
         run: |
@@ -130,6 +136,7 @@ jobs:
           echo "Project ID: $project_id"
           echo "project_id=$project_id" >> $GITHUB_ENV
 
+      # Getting analysis results from project using it's uuid in sarif/json format.
       - name: Fetch EPSS Data
         id: fetch-epss
         run: |
@@ -139,17 +146,54 @@ jobs:
           -o epss.sarif      
           echo "EPSS data fetched successfully."
        
-      
+# Action for downloading json/sarif result files for errors handling.      
 #      - name: Download Results Dependencies
 #        uses: actions/upload-artifact@v3
 #        with:
 #          name: epss-json
 #          path: epss.json       
       
+      # Official Github Action for uploading results in sarif format to Github Security tab.
       - name: Upload EPSS Data as SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
           token: ${{ secrets.PAT }}
           sarif_file: epss.sarif # sarif_file: ${{ steps.fetch-project.outputs.epss }}
           category: dependency-track
+      
+      # This code is used to create issues from epps.json results file if we won't succeed in  finding solution for uploading results to security tab.
+      # - name: Parse JSON and create issues
+      #   run: |
+      #     # Install jq for JSON parsing
+      #     sudo apt-get install jq
 
+      #     # Parse JSON file and create issues via GitHub API
+      #     cat epss.json | jq -c '.[]' | while read -r item; do
+      #       vuln_id=$(echo $item | jq -r '.vulnerability.vulnId')
+      #       description=$(echo $item | jq -r '.vulnerability.description')
+      #       severity=$(echo $item | jq -r '.vulnerability.severity')
+      #       epss_score=$(echo $item | jq -r '.vulnerability.epssScore')
+      #       component_name=$(echo $item | jq -r '.component.name')
+      #       component_version=$(echo $item | jq -r '.component.version')
+
+      #       # Determine EPSS Level
+      #       if (( $(echo "$epss_score > 0.5" | bc -l) )); then
+      #         epss_level="High EPSS"
+      #       elif (( $(echo "$epss_score > 0.2" | bc -l) )); then
+      #         epss_level="Medium EPSS"
+      #       else
+      #         epss_level="Low EPSS"
+      #       fi
+
+      #       # Ensure unique issue title by appending the vulnerability ID
+      #       title="Vulnerability - $vuln_id ($component_name $component_version)"
+
+      #       # Issue Body: Includes description, severity, and EPSS information
+      #       body="**Vulnerability ID**: $vuln_id\n\n**Description**: $description\n\n**Severity**: $severity\n\n**EPSS Score**: $epss_score ($epss_level)"
+
+      #       # Create issue using GitHub API
+      #       curl -X POST \
+      #         -H "Authorization: token ${{ secrets.PAT }}" \
+      #         -d '{"title": "'"$title"'", "body": "'"$body"'", "labels": ["security", "'"$severity"'", "'"$epss_level"'"]}' \
+      #         https://api.github.com/repos/${{ github.repository }}/issues
+      #     done
