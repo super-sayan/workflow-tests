@@ -179,7 +179,7 @@ jobs:
                               "driver": {
                                   "fullName": "OWASP Dependency Track",
                                   "informationUri": "https://dependency-track.org/",
-                                  "name": "Dependency-Track",
+                                  "name": "Dependency-Track 1.0",
                                   "rules": []
                               }
                           },
