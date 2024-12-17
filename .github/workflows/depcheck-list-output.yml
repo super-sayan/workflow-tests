@@ -225,7 +225,7 @@ jobs:
                           )
                       },
                       "properties": {
-                          "security-severity": str(vulnerability.get("cvssV3BaseScore", "N/A")),
+                          "security-severity": str(vulnerability.get("cvssV3BaseScore", 0)),
                           "tags": [
                               "vulnerability",
                               "security",
