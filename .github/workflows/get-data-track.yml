@@ -1,48 +1,300 @@
-name: Get Data from Dep-Track
+name: Dependency Track Scan
 on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: 16.x
-  PACKAGE_DIRS: ". ./client ./server"
-  DEPENDENCY_TRACK_API_KEY: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
-  DEPENDENCY_TRACK_BASE_URL: "https://69e1-62-90-190-70.ngrok-free.app"
-  PROJECT_NAME: "Testing Dep-Track Workflow"  # Replace with repo name later
+  NODE_VERSION: 16.x # Node.js version
+  PACKAGE_DIRS: ". ./client ./server" # Directories where package.json files are located on my local repo, don't need it in future versions
+  DEPENDENCY_TRACK_API_KEY: ${{ secrets.DEPENDENCYTRACK_APIKEY }} # API Key for using Dependecy Track API
+  DEPENDENCY_TRACK_BASE_URL: ${{ secrets.API_URL }} # URL of Dependency Track API server
+  DEPENDENCY_TRACK_SHORT_URL: ${{ secrets.API_SURL }}
+  PROJECT_NAME: ${{ github.repository }}  # Replace with repo name later
 
 jobs:
-  generate_clean_sbom:
+  code_analysis:
     runs-on: ubuntu-latest
-
+    permissions:
+      security-events: write
     steps:
+      # Define repo for output of results.
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      # Define Programming Language.
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      # Installing dependencies from package.json files of repo.
+      - name: Install Dependencies
+        run: |
+          for dir in ${{ env.PACKAGE_DIRS }}; do
+            echo "Installing dependencies in $dir"
+            cd "$dir" || exit
+            npm install
+            cd - || exit
+          done
+        shell: bash
+      
+      # Running Dependecy Check to define unused dependencies and create txt of unused deps.
+      - name: Run Depcheck and Write to List
+        run: |
+          echo "Unused Dependencies:" > unused_dependencies.txt
+          for dir in ${{ env.PACKAGE_DIRS }}; do
+            echo "Running depcheck in $dir..."
+            cd "$dir" || exit
+            output=$(npx depcheck || true)
+      
+            # Parse and annotate unused dependencies.
+            if echo "$output" | grep -q "Unused dependencies"; then
+              echo "$output" | sed -n '/Unused dependencies/,$p' | while IFS= read -r line; do
+                if [[ $line == "*"* ]]; then
+                  dep=$(echo "$line" | sed -E 's/\* //; s/:.*$//')
+                  echo "$dep" >> ../unused_dependencies.txt
+                fi
+              done
+            fi
+
+            # Parse and annotate unused devDependencies.
+            if echo "$output" | grep -q "Unused devDependencies"; then
+              echo "$output" | sed -n '/Unused devDependencies/,$p' | while IFS= read -r line; do
+                if [[ $line == "*"* ]]; then
+                  dep=$(echo "$line" | sed -E 's/\* //; s/:.*$//')
+                  echo "$dep" >> ../unused_dependencies.txt
+                fi
+              done
+            fi
+            cd - || exit
+          done
+          cat unused_dependencies.txt
+      
+      # Installing Trivy for SBOM generation.
+      - name: Install Trivy for SBOM Generation
+        run: |
+          curl -sSL https://github.com/aquasecurity/trivy/releases/download/v0.58.0/trivy_0.58.0_Linux-64bit.tar.gz | sudo tar xz -C /usr/local/bin
+      
+      # Generating SBOM using Trivy.
+      - name: Generate SBOM using Trivy
+        run: |
+          trivy fs --format cyclonedx --output sbom.json .
+
+      # Remove unused dependecies from generated SBOM.
+      - name: Remove Unused Dependencies from SBOM
+        run: |
+          echo "Removing unused dependencies from SBOM"
+    
+          # Read unused dependencies into a list.
+          unused_deps=$(cat unused_dependencies.txt)
+    
+          # Convert the list into a JSON array of objects with `group` and `name`.
+          unused_json=$(echo "$unused_deps" | jq -R -s '
+            split("\n") | 
+            map(select(length > 0)) |
+            map(if test("^@") then 
+                  {group: (split("/")[0]), name: (split("/")[1])} 
+                else 
+                  {group: null, name: .} 
+                end)
+          ')
+
+          # Filter components, matching against both `group` and `name`.
+          jq --argjson unused "$unused_json" '
+            .components |= map(select(
+              .name as $name | 
+              .group as $group |
+              ($unused | map(.name == $name and .group == $group) | any) | not
+            ))
+          ' sbom.json > filtered_sbom.json
+   
+   # An official Dependecy Track action for SBOM upload, doesn't work good with full URL of Dep Track Server.
+      - name: Upload SBOM to Dependency Track
+        uses: DependencyTrack/gh-upload-sbom@v3
+        with:
+          serverHostname: ${{ env.DEPENDENCY_TRACK_SHORT_URL }}
+          apiKey: ${{ env.DEPENDENCY_TRACK_API_KEY }}
+          projectName: ${{ env.PROJECT_NAME }} # change projectName -> to repo_name
+          projectVersion: '1.0.0'
+          bomFilename: "./filtered_sbom.json" # Adjust path if needed
+          autoCreate: true
+
+      # Getting uuid of Project, that we have created on the previous step.
       - name: Fetch Project ID
-        id: fetch-project-id
+        id: fetch-project
         run: |
           project_id=$(curl -s -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
           "${{ env.DEPENDENCY_TRACK_BASE_URL }}/api/v1/project" | jq -r '.[] | select(.name == "${{ env.PROJECT_NAME }}") | .uuid')
           echo "Project ID: $project_id"
           echo "project_id=$project_id" >> $GITHUB_ENV
 
+      # Getting analysis results from project using it's uuid in sarif/json format.
       - name: Fetch EPSS Data
         id: fetch-epss
         run: |
           curl -s -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
           "${{ env.DEPENDENCY_TRACK_BASE_URL }}/api/v1/finding/project/$project_id" \
-          -o epss.json
-          echo "EPSS data fetched successfully."
-
-      - name: Download Results Dependencies
-        uses: actions/upload-artifact@v3
+          -o epss.json  
+          echo "EPSS data fetched successfully." 
+        # -H "Accept: application/sarif+json" \
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          name: epss-json
-          path: epss.json
+          python-version: '3.x'
 
-      - name: Convert JSON to XML
+      - name: Convert JSON to SARIF
         run: |
-          cat epss.json | jq -r '
-            {"epss_scores": .} | 
-            toxml("epss_data")' > epss.xml
-          echo "EPSS data converted to XML."
+          python - <<EOF
+          import json
+          
+          def epss_score_to_level(epss_score):
+              """
+              Map EPSS score to SARIF alert levels.
+              """
+              if epss_score < 0.001:
+                  return "note"
+              elif epss_score < 0.01:
+                  return "warning"
+              else:
+                  return "error"
+          
+          def transform_epss_to_sarif(input_json_path, output_sarif_path):
+              """
+              Transform EPSS JSON into SARIF format.
+          
+              Args:
+                  input_json_path (str): Path to the input EPSS JSON file.
+                  output_sarif_path (str): Path to save the transformed SARIF file.
+              """
+              # Load the EPSS JSON file
+              with open(input_json_path, "r") as file:
+                  epss_data = json.load(file)
+              
+              # Initialize SARIF structure
+              sarif = {
+                  "version": "2.1.0",
+                  "\$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+                  "runs": [
+                      {
+                          "tool": {
+                              "driver": {
+                                  "fullName": "OWASP Dependency Track",
+                                  "informationUri": "https://dependency-track.org/",
+                                  "name": "Dependency-Track",
+                                  "rules": []
+                              }
+                          },
+                          "results": []
+                      }
+                  ]
+              }
+          
+              rules = []
+              results = []
+          
+              for entry in epss_data:
+                  component = entry["component"]
+                  vulnerability = entry["vulnerability"]
+                  epss_score = vulnerability.get("epssScore", 0)
+                  level = epss_score_to_level(epss_score)
+          
+                  # Add rule if not already added
+                  rule = {
+                      "id": vulnerability["vulnId"],
+                      "name": vulnerability.get("cweName", "Unknown CWE"),
+                      "fullDescription": {
+                          "text": vulnerability["description"]
+                      },
+                      "defaultConfiguration": {
+                          "level": level
+                      },
+                      "helpUri": f"https://nvd.nist.gov/vuln/detail/{vulnerability['vulnId']}",
+                      "help": {
+                          "text": (
+                              f"Vulnerability {vulnerability['vulnId']}\n"
+                              f"Severity: {vulnerability['severity']}\n"
+                              f"Package: {component['purl']}\n"
+                              f"epssScore: {epss_score}\n"
+                              f"Link: [CVE-{vulnerability['vulnId']}](https://nvd.nist.gov/vuln/detail/{vulnerability['vulnId']})\n"
+                              f"{vulnerability['description']}"
+                          ),
+                          "markdown": (
+                              f"**Vulnerability {vulnerability['vulnId']}**\n"
+                              f"| Severity | Package | epssScore | Link |\n"
+                              f"| --- | --- | --- | --- |\n"
+                              f"|{vulnerability['severity']}|{component['purl']}|{epss_score}|"
+                              f"[CVE-{vulnerability['vulnId']}](https://nvd.nist.gov/vuln/detail/{vulnerability['vulnId']})|\n\n"
+                              f"{vulnerability['description']}"
+                          )
+                      },
+                      "properties": {
+                          "security-severity": str(vulnerability.get("cvssV3BaseScore", 0)),
+                          "tags": [
+                              "vulnerability",
+                              "security",
+                              vulnerability["severity"]
+                          ]
+                      }
+                  }
+                  if rule not in rules:
+                      rules.append(rule)
+          
+                  # Add result
+                  result = {
+                      "ruleId": vulnerability["vulnId"],
+                      "level": level,
+                      "message": {
+                          "text": (
+                              f"Vulnerability {vulnerability['vulnId']}\n"
+                              f"Severity: {vulnerability['severity']}\n"
+                              f"Package: {component['purl']}\n"
+                              f"epssScore: {epss_score}\n"
+                              f"Link: [CVE-{vulnerability['vulnId']}](https://nvd.nist.gov/vuln/detail/{vulnerability['vulnId']})\n"
+                              f"{vulnerability['description']}"
+                          )
+                      },
+                      "locations": [
+                          {
+                              "physicalLocation": {
+                                  "artifactLocation": {
+                                      "uri": "package.json",
+                                      "uriBaseId": "ROOTPATH"
+                                  },
+                                  "region": {
+                                      "startLine": 1,
+                                      "startColumn": 1,
+                                      "endLine": 1,
+                                      "endColumn": 1
+                                  }
+                              },
+                              "message": {
+                                  "text": f"package.json: {component['purl']}"
+                              }
+                          }
+                      ]
+                  }
+                  results.append(result)
+          
+              # Assign rules and results to SARIF
+              sarif["runs"][0]["tool"]["driver"]["rules"] = rules
+              sarif["runs"][0]["results"] = results
+          
+              # Save the SARIF file
+              with open(output_sarif_path, "w") as file:
+                  json.dump(sarif, file, indent=2)
+          
+              print(f"SARIF file saved to {output_sarif_path}")
+          
+          
+          # Example usage
+          transform_epss_to_sarif("epss.json", "epss.sarif")          
+          EOF
 
-      - name: Output EPSS XML
-        run: |
-          cat epss.xml
+          
+      # Official Github Action for uploading results in sarif format to Github Security tab.
+      - name: Upload EPSS Data as SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: epss.sarif # sarif_file: ${{ steps.fetch-project.outputs.epss }}
+          category: dependency-track
+     #     token: ${{ secrets.PAT }}
+    
