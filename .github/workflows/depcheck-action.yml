@@ -9,6 +9,8 @@ jobs:
       # Define repo for output of results.
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
       
       # Installing Trivy for SBOM generation.
       - name: Install Trivy for SBOM Generation
@@ -24,7 +26,5 @@ jobs:
       - name: Upload EPSS Data as SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
-          token: ${{ secrets.PAT }}
           sarif_file: output.sarif # sarif_file: ${{ steps.fetch-project.outputs.epss }}
-          category: trivy
       
