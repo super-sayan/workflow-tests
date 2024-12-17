@@ -25,9 +25,10 @@ jobs:
           trivy fs --format sarif --debug --scanners vuln --output output.sarif .
       
       - name: Debug SARIF File
-        run: |
-          ls -l output.sarif
-          cat output.sarif
+        uses: actions/upload-artifact@v3
+        with:
+          name: outpus-sarif
+          path: oytput.sarif 
           
       # Official Github Action for uploading results in sarif format to Github Security tab.
       - name: Upload EPSS Data as SARIF
