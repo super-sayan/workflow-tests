@@ -28,7 +28,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: outpus-sarif
-          path: oytput.sarif 
+          path: output.sarif 
           
       # Official Github Action for uploading results in sarif format to Github Security tab.
       - name: Upload EPSS Data as SARIF
