@@ -147,6 +147,72 @@ jobs:
           -H "Accept: application/sarif+json" \
           -o epss.sarif  
           echo "EPSS data fetched successfully." 
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Convert JSON to SARIF
+        run: |
+          python - <<EOF
+          import json
+
+          def update_sarif_without_fingerprints(sarif_file_path, output_file_path):
+              """
+              Updates SARIF locations and removes logicalLocations and fingerprints.
+          
+              Args:
+                  sarif_file_path (str): Path to the input SARIF file.
+                  output_file_path (str): Path to save the updated SARIF file.
+              """
+              try:
+                  # Load the SARIF file
+                  with open(sarif_file_path, 'r') as file:
+                      sarif_data = json.load(file)
+          
+                  # Process each result in the SARIF file
+                  for run in sarif_data.get("runs", []):
+                      for result in run.get("results", []):
+                          for location in result.get("locations", []):
+                              # Define region parameters
+                              start_line = 308
+                              start_column = 1
+                              end_line = 311
+                              end_column = 1
+          
+                              # Replace logicalLocations with physicalLocation pointing to package.json
+                              location["physicalLocation"] = {
+                                  "artifactLocation": {
+                                      "uri": "package.json",
+                                      "uriBaseId": "ROOTPATH"
+                                  },
+                                  "region": {
+                                      "startLine": start_line,
+                                      "startColumn": start_column,
+                                      "endLine": end_line,
+                                      "endColumn": end_column
+                                  }
+                              }
+                              # Remove logicalLocations (if present)
+                              location.pop("logicalLocations", None)
+          
+                          # Remove partialFingerprints (if present)
+                          result.pop("partialFingerprints", None)
+          
+                  # Save the updated SARIF data
+                  with open(output_file_path, 'w') as file:
+                      json.dump(sarif_data, file, indent=2)
+          
+                  print(f"Updated SARIF file without fingerprints saved to {output_file_path}")
+          
+              except Exception as e:
+                  print(f"Error updating SARIF file: {e}")
+          
+          # Example usage
+          update_sarif_without_fingerprints("epss.sarif", "epss_updated.sarif")
+
+          EOF
 
 # Action for downloading json/sarif result files for errors handling.      
 #      - name: Download Results Dependencies
@@ -159,7 +225,7 @@ jobs:
       - name: Upload EPSS Data as SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: epss.sarif # sarif_file: ${{ steps.fetch-project.outputs.epss }}
+          sarif_file: epss_updated.sarif # sarif_file: ${{ steps.fetch-project.outputs.epss }}
           category: dependency-track
      #     token: ${{ secrets.PAT }}
       
