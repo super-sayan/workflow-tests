@@ -1,42 +1,31 @@
-name: Check Unused Dependencies
-
+name: Trivy to Secret
 on:
   workflow_dispatch:
-
-env:
-  NODE_VERSION: 16.x
-  PACKAGE_DIRS: ". ./server ./client"
-
 jobs:
-  depcheck_tool:
+  code_analysis:
     runs-on: ubuntu-latest
 
     steps:
+      # Define repo for output of results.
       - name: Checkout Code
-        uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/checkout@v4
+      
+      # Installing Trivy for SBOM generation.
+      - name: Install Trivy for SBOM Generation
+        run: |
+          curl -sSL https://github.com/aquasecurity/trivy/releases/download/v0.58.0/trivy_0.58.0_Linux-64bit.tar.gz | sudo tar xz -C /usr/local/bin
+      
+      # Generating SBOM using Trivy.
+      - name: Generate Sarif using Trivy
+        run: |
+          trivy fs --format sarif --debug --scanners vuln --output output.sarif .
+          trivy fs --format cyclonedx --output sbom.json .
+          
+      # Official Github Action for uploading results in sarif format to Github Security tab.
+      - name: Upload EPSS Data as SARIF
+        uses: github/codeql-action/upload-sarif@v3
         with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Install Dependencies
-        run: |
-          for dir in ${{ env.PACKAGE_DIRS }}; do
-            echo "Installing dependencies in $dir"
-            cd "$dir" || exit
-            npm install
-            cd - || exit
-          done
-          echo ${{ github.repository }}
-        shell: bash
-
-      - name: Run Depcheck for All Directories
-        run: |
-          for dir in ${{ env.PACKAGE_DIRS }}; do
-            echo "Running depcheck in $dir"
-            cd "$dir" || exit
-            npx depcheck || true
-            cd - || exit
-          done
-        shell: bash
+          token: ${{ secrets.PAT }}
+          sarif_file: output.sarif # sarif_file: ${{ steps.fetch-project.outputs.epss }}
+          category: dependency-track
+      
