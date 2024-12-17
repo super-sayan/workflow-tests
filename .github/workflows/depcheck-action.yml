@@ -7,8 +7,8 @@ jobs:
 
     steps:
       # Define repo for output of results.
-  #    - name: Checkout Code
-  #      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
       
       # Installing Trivy for SBOM generation.
       - name: Install Trivy for SBOM Generation
