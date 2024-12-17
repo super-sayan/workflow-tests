@@ -7,6 +7,7 @@ env:
   PACKAGE_DIRS: ". ./client ./server" # Directories where package.json files are located on my local repo, don't need it in future versions
   DEPENDENCY_TRACK_API_KEY: ${{ secrets.DEPENDENCYTRACK_APIKEY }} # API Key for using Dependecy Track API
   DEPENDENCY_TRACK_BASE_URL: ${{ secrets.API_URL }} # URL of Dependency Track API server
+  DEPENDENCY_TRACK_SHORT_URL: ${{ secrets.API_SURL }}
   PROJECT_NAME: ${{ github.repository }}  # Replace with repo name later
 
 jobs:
@@ -105,27 +106,27 @@ jobs:
           ' sbom.json > filtered_sbom.json
    
    # An official Dependecy Track action for SBOM upload, doesn't work good with full URL of Dep Track Server.
-   #   - name: Upload SBOM to Dependency Track
-   #     uses: DependencyTrack/gh-upload-sbom@v3
-   #     with:
-   #       serverHostname: ${{ env.DEPENDENCY_TRACK_BASE_URL }}
-   #       apiKey: ${{ env.DEPENDENCY_TRACK_API_KEY }}
-   #       projectName: ${{ env.PROJECT_NAME }} # change projectName -> to repo_name
-   #       projectVersion: '1.0.0'
-   #       bomFilename: "./filtered_sbom.json" # Adjust path if needed
-   #       autoCreate: true
+      - name: Upload SBOM to Dependency Track
+        uses: DependencyTrack/gh-upload-sbom@v3
+        with:
+          serverHostname: ${{ env.DEPENDENCY_TRACK_SHORT_URL }}
+          apiKey: ${{ env.DEPENDENCY_TRACK_API_KEY }}
+          projectName: ${{ env.PROJECT_NAME }} # change projectName -> to repo_name
+          projectVersion: '1.0.0'
+          bomFilename: "./filtered_sbom.json" # Adjust path if needed
+          autoCreate: true
 
       # Uploading SBOM to Dependency Track for analysis.   
-      - name: Upload SBOM to Dependency Track
-        id: SBOM-upload
-        run: |
-          curl -X "POST" "${{ env.DEPENDENCY_TRACK_BASE_URL }}/api/v1/bom" \
-               -H 'Content-Type: multipart/form-data' \
-               -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
-               -F "autoCreate=true" \
-               -F "projectName=${{ env.PROJECT_NAME }}" \
-               -F "projectVersion=1.0.0" \
-               -F "bom=@./filtered_sbom.json"
+   #   - name: Upload SBOM to Dependency Track
+   #     id: SBOM-upload
+   #     run: |
+   #       curl -X "POST" "${{ env.DEPENDENCY_TRACK_BASE_URL }}/api/v1/bom" \
+   #            -H 'Content-Type: multipart/form-data' \
+   #            -H "X-Api-Key: ${{ env.DEPENDENCY_TRACK_API_KEY }}" \
+   #            -F "autoCreate=true" \
+   #            -F "projectName=${{ env.PROJECT_NAME }}" \
+   #            -F "projectVersion=1.0.0" \
+   #            -F "bom=@./filtered_sbom.json"
 
       # Getting uuid of Project, that we have created on the previous step.
       - name: Fetch Project ID
@@ -156,13 +157,9 @@ jobs:
           python - <<EOF
           import json
           import hashlib
-          def generate_fingerprint(purl, vuln_id):
-              """
-              Generate a unique fingerprint based on the package URL (purl) and vulnerability ID.
-              """
-              data = f"{purl}:{vuln_id}"
-              hash_object = hashlib.sha256(data.encode())
-              return hash_object.hexdigest()[:16]
+          def generate_fingerprint(purl, vuln_id, file_path, start_line, start_column):
+              data = f"{purl}:{vuln_id}:{file_path}:{start_line}:{start_column}"
+              return hashlib.sha256(data.encode()).hexdigest()[:16]
           
           
           def transform_to_sarif(dependency_track_json, output_file_path):
