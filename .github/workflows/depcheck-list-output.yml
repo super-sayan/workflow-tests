@@ -235,7 +235,7 @@ jobs:
                           ]
                       }
                   }
-                  if rule not in rules:
+                  if rule in rules:
                       rules.append(rule)
           
                   # Add result
