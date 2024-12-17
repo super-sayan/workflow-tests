@@ -156,15 +156,15 @@ jobs:
           python - <<EOF
           import json
           import os
-      
+
           # Load package.json files and collect dependencies
-          package_dirs = ${{ env.PACKAGE_DIRS }}.split()
+          package_dirs = "${{ env.PACKAGE_DIRS }}".split()
           dependency_map = {}
-      
+
           for dir_path in package_dirs:
               package_json_path = os.path.join(dir_path, "package.json")
-              with open(package_json_path, "r") as f:
-                  try:
+              try:
+                  with open(package_json_path, "r") as f:
                       package_data = json.load(f)
                       dependencies = package_data.get("dependencies", {})
                       for dep, version in dependencies.items():
@@ -172,15 +172,16 @@ jobs:
                               "version": version,
                               "file": package_json_path
                           }
-                  except json.JSONDecodeError:
-                      print(f"Failed to parse {package_json_path}")
-      
+              except (json.JSONDecodeError, FileNotFoundError):
+                  print(f"Failed to parse {package_json_path}")
+
           # Save consolidated dependencies for later use
           with open("dependency_locations.json", "w") as out_file:
               json.dump(dependency_map, out_file, indent=2)
-      
+
           print("Dependency locations saved to dependency_locations.json")
           EOF
+
 
       - name: Convert JSON to SARIF
         run: |
