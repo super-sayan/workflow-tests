@@ -235,6 +235,9 @@ jobs:
               for entry in epss_data:
                   component = entry["component"]
                   vulnerability = entry["vulnerability"]
+                  dep_name = component["purl"].split("/")[-1]
+                  location_info = dependency_locations.get(dep_name, {})
+                  file_path = location_info.get("file", "unknown")
                   epss_score = vulnerability.get("epssScore", 0)
                   level = epss_score_to_level(epss_score)
           
@@ -295,8 +298,6 @@ jobs:
                       "locations": [
                           {
                               "physicalLocation": {
-                                  location_info = dependency_locations.get(dep_name, {})
-                                  file_path = location_info.get("file", "unknown")
                                   "artifactLocation": {
                                       "uri": file_path,
                                       "uriBaseId": "ROOTPATH"
