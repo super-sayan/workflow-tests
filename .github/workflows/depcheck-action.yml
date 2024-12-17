@@ -19,7 +19,6 @@ jobs:
       - name: Generate Sarif using Trivy
         run: |
           trivy fs --format sarif --debug --scanners vuln --output output.sarif .
-          trivy fs --format cyclonedx --output sbom.json .
           
       # Official Github Action for uploading results in sarif format to Github Security tab.
       - name: Upload EPSS Data as SARIF
