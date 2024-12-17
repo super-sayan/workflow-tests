@@ -4,7 +4,6 @@ on:
 
 env:
   NODE_VERSION: 16.x # Node.js version
-  PACKAGE_DIRS: ". ./client ./server" # Directories where package.json files are located on my local repo, don't need it in future versions
   DEPENDENCY_TRACK_API_KEY: ${{ secrets.DEPENDENCYTRACK_APIKEY }} # API Key for using Dependecy Track API
   DEPENDENCY_TRACK_BASE_URL: ${{ secrets.API_URL }} # URL of Dependency Track API server
   DEPENDENCY_TRACK_SHORT_URL: ${{ secrets.API_SURL }}
@@ -24,7 +23,18 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
-      
+       
+      - name: Find package.json Files
+        id: locate-package-json
+        run: |
+          # Find all directories containing package.json
+          find . -name "package.json" -exec dirname {} \; > package_dirs.txt
+
+          # Export as a reusable list
+          PACKAGE_DIRS=$(cat package_dirs.txt | tr '\n' ' ')
+          echo "Found directories: $PACKAGE_DIRS"
+          echo "PACKAGE_DIRS=$PACKAGE_DIRS" >> $GITHUB_ENV     
+          
       # Installing dependencies from package.json files of repo.
       - name: Install Dependencies
         run: |
@@ -140,6 +150,37 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
+      # Generate a consolidated dependencies file from package.json files
+      - name: Gather Dependencies from package.json Files
+        run: |
+          python - <<EOF
+          import json
+          import os
+      
+          # Load package.json files and collect dependencies
+          package_dirs = os.getenv("PACKAGE_DIRS").split()
+          dependency_map = {}
+      
+          for dir_path in package_dirs:
+              package_json_path = os.path.join(dir_path, "package.json")
+              with open(package_json_path, "r") as f:
+                  try:
+                      package_data = json.load(f)
+                      dependencies = package_data.get("dependencies", {})
+                      for dep, version in dependencies.items():
+                          dependency_map[dep] = {
+                              "version": version,
+                              "file": package_json_path
+                          }
+                  except json.JSONDecodeError:
+                      print(f"Failed to parse {package_json_path}")
+      
+          # Save consolidated dependencies for later use
+          with open("dependency_locations.json", "w") as out_file:
+              json.dump(dependency_map, out_file, indent=2)
+      
+          print("Dependency locations saved to dependency_locations.json")
+          EOF
 
       - name: Convert JSON to SARIF
         run: |
@@ -179,7 +220,7 @@ jobs:
                               "driver": {
                                   "fullName": "OWASP Dependency Track",
                                   "informationUri": "https://dependency-track.org/",
-                                  "name": "Dependency-Track 1.0",
+                                  "name": "Dependency-Track 2.0",
                                   "rules": []
                               }
                           },
@@ -199,7 +240,7 @@ jobs:
           
                   # Add rule if not already added
                   rule = {
-                      "id": vulnerability["vulnId"]+"3",
+                      "id": vulnerability["vulnId"],
                       "name": vulnerability.get("cweName", "Unknown CWE"),
                       "fullDescription": {
                           "text": vulnerability["description"]
@@ -240,7 +281,7 @@ jobs:
           
                   # Add result
                   result = {
-                      "ruleId": vulnerability["vulnId"]+"3",
+                      "ruleId": vulnerability["vulnId"],
                       "level": level,
                       "message": {
                           "text": (
@@ -254,8 +295,10 @@ jobs:
                       "locations": [
                           {
                               "physicalLocation": {
+                                  location_info = dependency_locations.get(dep_name, {})
+                                  file_path = location_info.get("file", "unknown")
                                   "artifactLocation": {
-                                      "uri": "package.json",
+                                      "uri": file_path,
                                       "uriBaseId": "ROOTPATH"
                                   },
                                   "region": {
