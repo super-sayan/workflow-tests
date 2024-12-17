@@ -195,7 +195,7 @@ jobs:
                               "kind": "path-problem",
                               "name": vulnerability.get("cweName", "Unknown CWE"),
                               "problem.severity": vulnerability["severity"].lower(),
-                              "security-severity": vulnerability.get("cvssV3BaseScore", 0),
+                              "security-severity": vulnerability.get("cvssV3BaseScore", "0"),
                           }
                       }
                       unique_rules[unique_rule_id] = rule
