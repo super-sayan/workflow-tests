@@ -1,4 +1,4 @@
-name: Check Unused Dependencies (List)
+name: Dependency Track SCA
 on:
   workflow_dispatch:
 
@@ -248,8 +248,7 @@ jobs:
                               f"Severity: {vulnerability['severity']}\n"
                               f"Package: {component['purl']}\n"
                               f"epssScore: {epss_score}\n"
-                              f"Link: [CVE-{vulnerability['vulnId']}](https://nvd.nist.gov/vuln/detail/{vulnerability['vulnId']})\n"
-                              f"{vulnerability['description']}"
+                              f"Link: [CVE-{vulnerability['vulnId']}](https://nvd.nist.gov/vuln/detail/{vulnerability['vulnId']})"
                           )
                       },
                       "locations": [
