@@ -27,7 +27,7 @@ jobs:
       - name: Debug SARIF File
         uses: actions/upload-artifact@v3
         with:
-          name: outpus-sarif
+          name: output-sarif
           path: output.sarif 
           
       # Official Github Action for uploading results in sarif format to Github Security tab.
