@@ -199,7 +199,7 @@ jobs:
           
                   # Add rule if not already added
                   rule = {
-                      "id": vulnerability["vulnId"],
+                      "id": vulnerability["vulnId"]+"1",
                       "name": vulnerability.get("cweName", "Unknown CWE"),
                       "fullDescription": {
                           "text": vulnerability["description"]
@@ -240,7 +240,7 @@ jobs:
           
                   # Add result
                   result = {
-                      "ruleId": vulnerability["vulnId"],
+                      "ruleId": vulnerability["vulnId"]+"1",
                       "level": level,
                       "message": {
                           "text": (
