@@ -186,7 +186,7 @@ jobs:
         run: |
           python - <<EOF
           import json
-          
+          import re
           def epss_score_to_level(epss_score):
               """
               Map EPSS score to SARIF alert levels.
@@ -197,7 +197,21 @@ jobs:
                   return "warning"
               else:
                   return "error"
-          
+          def find_dependency_line(file_path, dependency_name):
+              """
+              Find the line number of the dependency in the package.json file.
+              """
+              try:
+                  with open(file_path, "r") as file:
+                      lines = file.readlines()
+                      for i, line in enumerate(lines, start=1):
+                          # Match the dependency name in a JSON line
+                          if re.search(f'"{re.escape(dependency_name)}"', line):
+                              return i
+              except FileNotFoundError:
+                  print(f"File not found: {file_path}")
+              return 1  # Default to line 1 if not found
+    
           def transform_epss_to_sarif(input_json_path, output_sarif_path):
               """
               Transform EPSS JSON into SARIF format.
@@ -209,7 +223,10 @@ jobs:
               # Load the EPSS JSON file
               with open(input_json_path, "r") as file:
                   epss_data = json.load(file)
-              
+              # Load dependency locations
+              with open("dependency_locations.json", "r") as dep_file:
+                  dependency_locations = json.load(dep_file)
+                  
               # Initialize SARIF structure
               sarif = {
                   "version": "2.1.0",
@@ -303,9 +320,9 @@ jobs:
                                       "uriBaseId": "ROOTPATH"
                                   },
                                   "region": {
-                                      "startLine": 1,
+                                      "startLine": find_dependency_line(file_path, dep_name),
                                       "startColumn": 1,
-                                      "endLine": 1,
+                                      "endLine": find_dependency_line(file_path, dep_name),
                                       "endColumn": 1
                                   }
                               },
