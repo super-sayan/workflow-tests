@@ -1,0 +1,51 @@
+# For most projects, this workflow file will not need changing; you simply need
+# to commit it to your repository.
+#
+# You may wish to alter this file to override the set of languages analyzed,
+# or to provide custom queries or build logic.
+#
+# ******** NOTE ********
+# We have attempted to detect the languages in your repository. Please check
+# the `language` matrix defined below to confirm you have the correct set of
+# supported CodeQL languages.
+#
+name: "CodeQL very Advanced"
+
+on:
+  workflow_dispatch:
+jobs:
+  code_analysis:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      
+    steps:
+      # Define repo for output of results.
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+      
+      # Installing Trivy for SBOM generation.
+      - name: Install Trivy for SBOM Generation
+        run: |
+          curl -sSL https://github.com/aquasecurity/trivy/releases/download/v0.58.0/trivy_0.58.0_Linux-64bit.tar.gz | sudo tar xz -C /usr/local/bin
+      
+      # Generating SBOM using Trivy.
+      - name: Generate Sarif using Trivy
+        run: |
+          trivy fs --format sarif --debug --scanners vuln --output output.sarif .
+      
+      - name: Debug SARIF File
+        uses: actions/upload-artifact@v3
+        with:
+          name: output-sarif
+          path: output.sarif 
+          
+      # Official Github Action for uploading results in sarif format to Github Security tab.
+      - name: Upload EPSS Data as SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: output.sarif # sarif_file: ${{ steps.fetch-project.outputs.epss }}
+          token: ${{ secrets.PAT }}
+          category: "/language:${{matrix.language}}"
