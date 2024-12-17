@@ -181,6 +181,7 @@ jobs:
 
           print("Dependency locations saved to dependency_locations.json")
           EOF
+          cat dependency_locations.json
 
 
       - name: Convert JSON to SARIF
