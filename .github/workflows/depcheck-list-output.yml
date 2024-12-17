@@ -235,13 +235,12 @@ jobs:
                           ]
                       }
                   }
-                  if rule in rules:
+                  if rule not in rules:
                       rules.append(rule)
           
                   # Add result
                   result = {
                       "ruleId": vulnerability["vulnId"],
-                      "ruleIndex": len(rules) - 1,
                       "level": level,
                       "message": {
                           "text": (
