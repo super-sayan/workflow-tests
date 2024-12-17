@@ -1,11 +1,10 @@
-name: Check Unused Dependencies with Alerts
-
+name: Find Unused Dependencies
 on:
   workflow_dispatch:
 
 env:
   NODE_VERSION: 16.x
-  PACKAGE_DIRS: ". ./client ./server"
+#  PACKAGE_DIRS: ". ./client ./server"
 
 jobs:
   depcheck_with_alerts:
@@ -19,7 +18,19 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
+        
+      - name: Find package.json Files
+        id: locate-package-json
+        run: |
+          # Find all directories containing package.json
+          find . -name "package.json" -exec dirname {} \; > package_dirs.txt
 
+          # Export as a reusable list
+          PACKAGE_DIRS=$(cat package_dirs.txt | tr '\n' ' ')
+          echo "Found directories: $PACKAGE_DIRS"
+          echo "PACKAGE_DIRS=$PACKAGE_DIRS" >> $GITHUB_ENV
+
+      # Install dependencies from all located package.json files
       - name: Install Dependencies
         run: |
           for dir in ${{ env.PACKAGE_DIRS }}; do
@@ -28,40 +39,39 @@ jobs:
             npm install
             cd - || exit
           done
-        shell: bash
+        shell: bash 
 
-      - name: Run Depcheck and Output Alerts
+      # Running Dependecy Check to define unused dependencies and create txt of unused deps.
+      - name: Run Depcheck and Write to List
         run: |
+          echo "Unused Dependencies:" > unused_dependencies.txt
           for dir in ${{ env.PACKAGE_DIRS }}; do
-            echo "Running depcheck in $dir"
+            echo "Running depcheck in $dir..."
             cd "$dir" || exit
             output=$(npx depcheck || true)
-
-            echo "$output"
-
-            # Parse and annotate unused dependencies
+      
+            # Parse and annotate unused dependencies.
             if echo "$output" | grep -q "Unused dependencies"; then
               echo "$output" | sed -n '/Unused dependencies/,$p' | while IFS= read -r line; do
                 if [[ $line == "*"* ]]; then
-                  dep=$(echo "$line" | sed 's/* //')
-                  echo "::warning file=${dir}/package.json,title=Unused dependency::$dep is unused in $dir"
+                  dep=$(echo "$line" | sed -E 's/\* //; s/:.*$//')
+                  echo "$dep" >> ../unused_dependencies.txt
                 fi
               done
             fi
 
-            # Parse and annotate unused devDependencies
+            # Parse and annotate unused devDependencies.
             if echo "$output" | grep -q "Unused devDependencies"; then
               echo "$output" | sed -n '/Unused devDependencies/,$p' | while IFS= read -r line; do
                 if [[ $line == "*"* ]]; then
-                  dep=$(echo "$line" | sed 's/* //')
-                  echo "::warning file=${dir}/package.json,title=Unused devDependency::$dep is unused in $dir"
+                  dep=$(echo "$line" | sed -E 's/\* //; s/:.*$//')
+                  echo "$dep" >> ../unused_dependencies.txt
                 fi
               done
             fi
-
             cd - || exit
           done
-        shell: bash
+          cat unused_dependencies.txt
         
      # Uploading SBOM to Dependency Track for analysis.   
    #   - name: Upload SBOM to Dependency Track
