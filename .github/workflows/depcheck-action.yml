@@ -26,5 +26,5 @@ jobs:
         with:
           token: ${{ secrets.PAT }}
           sarif_file: output.sarif # sarif_file: ${{ steps.fetch-project.outputs.epss }}
-          category: dependency-track
+          category: trivy
       
