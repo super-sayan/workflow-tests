@@ -158,7 +158,7 @@ jobs:
           import os
       
           # Load package.json files and collect dependencies
-          package_dirs = os.getenv("PACKAGE_DIRS").split()
+          package_dirs = ${{ env.PACKAGE_DIRS }}.split()
           dependency_map = {}
       
           for dir_path in package_dirs:
