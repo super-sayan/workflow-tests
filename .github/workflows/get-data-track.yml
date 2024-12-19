@@ -170,7 +170,7 @@ jobs:
                       for dep, version in dependencies.items():
                           dependency_map[dep] = {
                               "version": version,
-                              "file": package_json_path
+                              "file": package_json_path.split("./")
                           }
               except (json.JSONDecodeError, FileNotFoundError):
                   print(f"Failed to parse {package_json_path}")
@@ -189,6 +189,39 @@ jobs:
           python - <<EOF
           import json
           import re
+          import os
+          def find_dep_location(dep_name):
+              """
+                Search for a dependency in package-lock.json files.
+
+              Args:
+                    dep_name (str): The name of the dependency to search for.
+
+              Returns:
+                  str: Path to the package-lock.json file containing the dependency, or "unknown".
+              """
+              # Convert dep_name from the format "pkg:npm/ws@8.16.0" to "ws-8.16.0"
+              if "npm/" in dep_name and "@" in dep_name:
+                  search_name = dep_name.split("npm/")[1].replace("@", "-")
+              else:
+                  return "unknown"
+              
+              # Iterate through directories containing package-lock.json
+              package_dirs = "${{ env.PACKAGE_DIRS }}".split()
+              for dir_path in package_dirs:
+                  lockfile_path = os.path.join(dir_path, "package-lock.json")
+                  if os.path.exists(lockfile_path):
+                      with open(lockfile_path, "r") as lockfile:
+                          try:
+                              lock_data = json.load(lockfile)
+                              # Traverse dependencies in the package-lock.json file
+                              for dep, details in lock_data.get("dependencies", {}).items():
+                                  resolved = details.get("resolved", "")
+                                  if search_name in resolved:
+                                      return lockfile_path.split("./")
+                          except json.JSONDecodeError:
+                              print(f"Failed to parse {lockfile_path}")
+              return "unknown"
           def get_dependency_name(purl):
               """
               Extract the dependency name from the purl field.
