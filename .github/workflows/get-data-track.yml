@@ -211,11 +211,12 @@ jobs:
               package_dirs = "${{ env.PACKAGE_DIRS }}".split()
               for dir_path in package_dirs:
                   lockfile_path = os.path.join(dir_path, "package-lock.json")
+                  print(lockfile_path)
                   try:
                       with open(lockfile_path, "r") as lockfile:
                           lock_data = json.load(lockfile)
                           # Traverse dependencies in the package-lock.json file
-                          for dep, details in lock_data.get("dependencies", {}).items():
+                          for dep, details in lock_data.get("packages", {}).items():
                               resolved = details.get("resolved", "")
                               if search_name in resolved:
                                   return lockfile_path.replace("./", "")
@@ -304,7 +305,6 @@ jobs:
                   if dep_name in dependency_locations:
                       location_info = dependency_locations[dep_name]
                       file_path = location_info.get("file", "unknown")
-                      print(f"package: {file_path}")
                   else:
                       file_path = find_dep_location(component["purl"])
                       print(f"package-l: {file_path}")
