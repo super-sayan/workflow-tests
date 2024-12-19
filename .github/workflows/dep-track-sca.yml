@@ -7,7 +7,7 @@ env:
   DEPENDENCY_TRACK_API_KEY: ${{ secrets.DEPENDENCYTRACK_APIKEY }} # API Key for using Dependecy Track API
   DEPENDENCY_TRACK_BASE_URL: ${{ secrets.API_URL }} # URL of Dependency Track API server
   DEPENDENCY_TRACK_SHORT_URL: ${{ secrets.API_SURL }}
-  PROJECT_NAME: ${{ github.repository }}  # Replace with repo name later
+  PROJECT_NAME: ${{ github.repository }}
 
 jobs:
   code_analysis:
