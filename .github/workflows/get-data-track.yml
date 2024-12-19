@@ -189,6 +189,18 @@ jobs:
           python - <<EOF
           import json
           import re
+          def get_dependency_name(purl):
+              """
+              Extract the dependency name from the purl field.
+              Args:
+                  purl (str): The package URL in the format pkg:npm/<name>@<version>.
+              Returns:
+                  str: The extracted dependency name.
+              """
+              if "npm/" in purl and "@" in purl:
+                  return purl.split("npm/")[1].split("@")[0]
+              return None
+              
           def epss_score_to_level(epss_score):
               """
               Map EPSS score to SARIF alert levels.
@@ -199,6 +211,7 @@ jobs:
                   return "warning"
               else:
                   return "error"
+                  
           def find_dependency_line(file_path, dependency_name):
               """
               Find the line number of the dependency in the package.json file.
@@ -254,7 +267,7 @@ jobs:
               for entry in epss_data:
                   component = entry["component"]
                   vulnerability = entry["vulnerability"]
-                  dep_name = component["purl"].split("/")[-1]
+                  dep_name = get_dependency_name(component["purl"])
                   location_info = dependency_locations.get(dep_name, {})
                   file_path = location_info.get("file", "unknown")
                   epss_score = vulnerability.get("epssScore", 0)
