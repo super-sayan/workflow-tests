@@ -204,6 +204,7 @@ jobs:
               if "npm/" in dep_name and "@" in dep_name:
                   search_name = dep_name.split("npm/")[1].replace("@", "-")
               else:
+                  print(f"failed to parse file name: {dep_name}")
                   return "unknown"
               
               # Iterate through directories containing package-lock.json
@@ -304,10 +305,8 @@ jobs:
                   if dep_name in dependency_locations:
                       location_info = dependency_locations[dep_name]
                       file_path = location_info.get("file", "unknown")
-                      print(f"package location: {file_path}")
                   else:
                       file_path = find_dep_location(dep_name)
-                      print(f"package-lock path: {file_path}")
                   epss_score = vulnerability.get("epssScore", 0)
                   level = epss_score_to_level(epss_score)
           
