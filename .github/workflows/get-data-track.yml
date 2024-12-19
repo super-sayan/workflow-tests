@@ -204,23 +204,23 @@ jobs:
               if "npm/" in dep_name and "@" in dep_name:
                   search_name = dep_name.split("npm/")[1].replace("@", "-")
               else:
+                  print(f"We have a parsing problem: {dep_name}")
                   return "unknown"
               
               # Iterate through directories containing package-lock.json
               package_dirs = "${{ env.PACKAGE_DIRS }}".split()
               for dir_path in package_dirs:
                   lockfile_path = os.path.join(dir_path, "package-lock.json")
-                  if os.path.exists(lockfile_path):
+                  try:
                       with open(lockfile_path, "r") as lockfile:
-                          try:
-                              lock_data = json.load(lockfile)
-                              # Traverse dependencies in the package-lock.json file
-                              for dep, details in lock_data.get("dependencies", {}).items():
-                                  resolved = details.get("resolved", "")
-                                  if search_name in resolved:
-                                      return lockfile_path.replace("./", "")
-                          except json.JSONDecodeError:
-                              print(f"Failed to parse {lockfile_path}")
+                          lock_data = json.load(lockfile)
+                          # Traverse dependencies in the package-lock.json file
+                          for dep, details in lock_data.get("dependencies", {}).items():
+                              resolved = details.get("resolved", "")
+                              if search_name in resolved:
+                                  return lockfile_path.replace("./", "")
+                      except json.JSONDecodeError:
+                          print(f"Failed to parse {lockfile_path}")
               return "unknown"
           def get_dependency_name(purl):
               """
