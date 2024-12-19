@@ -170,7 +170,7 @@ jobs:
                       for dep, version in dependencies.items():
                           dependency_map[dep] = {
                               "version": version,
-                              "file": package_json_path.split("./")
+                              "file": package_json_path.replace("./", "")
                           }
               except (json.JSONDecodeError, FileNotFoundError):
                   print(f"Failed to parse {package_json_path}")
@@ -218,7 +218,7 @@ jobs:
                               for dep, details in lock_data.get("dependencies", {}).items():
                                   resolved = details.get("resolved", "")
                                   if search_name in resolved:
-                                      return lockfile_path.split("./")
+                                      return lockfile_path.replace("./", "")
                           except json.JSONDecodeError:
                               print(f"Failed to parse {lockfile_path}")
               return "unknown"
