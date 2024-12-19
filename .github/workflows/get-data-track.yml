@@ -219,8 +219,8 @@ jobs:
                               resolved = details.get("resolved", "")
                               if search_name in resolved:
                                   return lockfile_path.replace("./", "")
-                      except json.JSONDecodeError:
-                          print(f"Failed to parse {lockfile_path}")
+                  except json.JSONDecodeError:
+                      print(f"Failed to parse {lockfile_path}")
               return "unknown"
           def get_dependency_name(purl):
               """
