@@ -208,7 +208,6 @@ jobs:
               package_dirs = "${{ env.PACKAGE_DIRS }}".split()
               for dir_path in package_dirs:
                   lockfile_path = os.path.join(dir_path, "package-lock.json")
-                  print(lockfile_path)
                   try:
                       with open(lockfile_path, "r") as lockfile:
                           lock_data = json.load(lockfile)
@@ -220,17 +219,6 @@ jobs:
                   except json.JSONDecodeError:
                       print(f"Failed to parse {lockfile_path}")
               return "unknown-lock"
-          def get_dependency_name(purl):
-              """
-              Extract the dependency name from the purl field.
-              Args:
-                  purl (str): The package URL in the format pkg:npm/<name>@<version>.
-              Returns:
-                  str: The extracted dependency name.
-              """
-              if "npm/" in purl and "@" in purl:
-                  return purl.split("npm/")[1].split("@")[0]
-              return None
               
           def epss_score_to_level(epss_score):
               """
