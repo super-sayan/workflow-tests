@@ -4,7 +4,6 @@ on:
 
 env:
   NODE_VERSION: 16.x # Node.js version
-  PACKAGE_DIRS: ". ./client ./server" # Directories where package.json files are located on my local repo, don't need it in future versions
   DEPENDENCY_TRACK_API_KEY: ${{ secrets.DEPENDENCYTRACK_APIKEY }} # API Key for using Dependecy Track API
   DEPENDENCY_TRACK_BASE_URL: ${{ secrets.API_URL }} # URL of Dependency Track API server
   DEPENDENCY_TRACK_SHORT_URL: ${{ secrets.API_SURL }}
@@ -24,7 +23,18 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
-      
+       
+      - name: Find package.json Files
+        id: locate-package-json
+        run: |
+          # Find all directories containing package.json
+          find . -name "package.json" -exec dirname {} \; > package_dirs.txt
+
+          # Export as a reusable list
+          PACKAGE_DIRS=$(cat package_dirs.txt | tr '\n' ' ')
+          echo "Found directories: $PACKAGE_DIRS"
+          echo "PACKAGE_DIRS=$PACKAGE_DIRS" >> $GITHUB_ENV     
+          
       # Installing dependencies from package.json files of repo.
       - name: Install Dependencies
         run: |
@@ -140,12 +150,91 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
+      # Generate a consolidated dependencies file from package.json files
+      - name: Gather Dependencies from package.json Files
+        run: |
+          python - <<EOF
+          import json
+          import os
+
+          # Load package.json files and collect dependencies
+          package_dirs = "${{ env.PACKAGE_DIRS }}".split()
+          dependency_map = {}
+
+          for dir_path in package_dirs:
+              package_json_path = os.path.join(dir_path, "package.json")
+              try:
+                  with open(package_json_path, "r") as f:
+                      package_data = json.load(f)
+                      dependencies = package_data.get("dependencies", {})
+                      for dep, version in dependencies.items():
+                          dependency_map[dep] = {
+                              "version": version,
+                              "file": package_json_path.replace("./", "")
+                          }
+              except (json.JSONDecodeError, FileNotFoundError):
+                  print(f"Failed to parse {package_json_path}")
+
+          # Save consolidated dependencies for later use
+          with open("dependency_locations.json", "w") as out_file:
+              json.dump(dependency_map, out_file, indent=2)
+
+          print("Dependency locations saved to dependency_locations.json")
+          EOF
+          cat dependency_locations.json
+
 
       - name: Convert JSON to SARIF
         run: |
           python - <<EOF
           import json
-          
+          import re
+          import os
+          def find_dep_location(dep_name):
+              """
+                Search for a dependency in package-lock.json files.
+
+              Args:
+                    dep_name (str): The name of the dependency to search for.
+
+              Returns:
+                  str: Path to the package-lock.json file containing the dependency, or "unknown".
+              """
+              # Convert dep_name from the format "pkg:npm/name@version" to "name-version"
+              if "npm/" in dep_name and "@" in dep_name:
+                  search_name = dep_name.split("npm/")[1].replace("@", "-")
+                  print(search_name)
+              else:
+                  return "unknown"
+              
+              # Iterate through directories containing package-lock.json
+              package_dirs = "${{ env.PACKAGE_DIRS }}".split()
+              for dir_path in package_dirs:
+                  lockfile_path = os.path.join(dir_path, "package-lock.json")
+                  print(lockfile_path)
+                  try:
+                      with open(lockfile_path, "r") as lockfile:
+                          lock_data = json.load(lockfile)
+                          # Traverse dependencies in the package-lock.json file
+                          for dep, details in lock_data.get("packages", {}).items():
+                              resolved = details.get("resolved", "")
+                              if search_name in resolved:
+                                  return lockfile_path.replace("./", "")
+                  except json.JSONDecodeError:
+                      print(f"Failed to parse {lockfile_path}")
+              return "unknown-lock"
+          def get_dependency_name(purl):
+              """
+              Extract the dependency name from the purl field.
+              Args:
+                  purl (str): The package URL in the format pkg:npm/<name>@<version>.
+              Returns:
+                  str: The extracted dependency name.
+              """
+              if "npm/" in purl and "@" in purl:
+                  return purl.split("npm/")[1].split("@")[0]
+              return None
+              
           def epss_score_to_level(epss_score):
               """
               Map EPSS score to SARIF alert levels.
@@ -156,7 +245,22 @@ jobs:
                   return "warning"
               else:
                   return "error"
-          
+                  
+          def find_dependency_line(file_path, dependency_name):
+              """
+              Find the line number of the dependency in the package.json file.
+              """
+              try:
+                  with open(file_path, "r") as file:
+                      lines = file.readlines()
+                      for i, line in enumerate(lines, start=1):
+                          # Match the dependency name in a JSON line
+                          if re.search(f'"{re.escape(dependency_name)}"', line):
+                              return i
+              except FileNotFoundError:
+                  print(f"File not found: {file_path}")
+              return 1  # Default to line 1 if not found
+    
           def transform_epss_to_sarif(input_json_path, output_sarif_path):
               """
               Transform EPSS JSON into SARIF format.
@@ -168,7 +272,10 @@ jobs:
               # Load the EPSS JSON file
               with open(input_json_path, "r") as file:
                   epss_data = json.load(file)
-              
+              # Load dependency locations
+              with open("dependency_locations.json", "r") as dep_file:
+                  dependency_locations = json.load(dep_file)
+                  
               # Initialize SARIF structure
               sarif = {
                   "version": "2.1.0",
@@ -194,6 +301,13 @@ jobs:
               for entry in epss_data:
                   component = entry["component"]
                   vulnerability = entry["vulnerability"]
+                  dep_name = get_dependency_name(component["purl"])
+                  if dep_name in dependency_locations:
+                      location_info = dependency_locations[dep_name]
+                      file_path = location_info.get("file", "unknown")
+                  else:
+                      file_path = find_dep_location(component["purl"])
+                      print(f"package-l: {file_path}")
                   epss_score = vulnerability.get("epssScore", 0)
                   level = epss_score_to_level(epss_score)
           
@@ -255,13 +369,13 @@ jobs:
                           {
                               "physicalLocation": {
                                   "artifactLocation": {
-                                      "uri": "package.json",
+                                      "uri": file_path,
                                       "uriBaseId": "ROOTPATH"
                                   },
                                   "region": {
-                                      "startLine": 1,
+                                      "startLine": find_dependency_line(file_path, dep_name),
                                       "startColumn": 1,
-                                      "endLine": 1,
+                                      "endLine": find_dependency_line(file_path, dep_name),
                                       "endColumn": 1
                                   }
                               },
@@ -282,9 +396,6 @@ jobs:
                   json.dump(sarif, file, indent=2)
           
               print(f"SARIF file saved to {output_sarif_path}")
-          
-          
-          # Example usage
           transform_epss_to_sarif("epss.json", "epss.sarif")          
           EOF
 
@@ -293,7 +404,6 @@ jobs:
       - name: Upload EPSS Data as SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: epss.sarif # sarif_file: ${{ steps.fetch-project.outputs.epss }}
+          sarif_file: epss.sarif
           category: dependency-track
      #     token: ${{ secrets.PAT }}
-    
