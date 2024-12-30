@@ -47,13 +47,9 @@ jobs:
           project: 'test'
           path: '.'
           format: 'HTML'
-          out: '.' # this is the default, no need to specify unless you wish to override it
-          args: >
-            --failOnCVSS 7
-            --enableRetired
             
       - name: Upload Test results
         uses: actions/upload-artifact@master
         with:
            name: Depcheck report
-           path: ${{github.workspace}}
+           path: ${{ github.workspace }}/reports
