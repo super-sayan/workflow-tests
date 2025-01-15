@@ -176,7 +176,7 @@ jobs:
                 pip install deptry
                 echo "Running deptry for Python..."
                 deptry_output=$(deptry . || true)
-                cat deptry_ouput
+                echo "$deptry_output"
                 echo "$deptry_output" | grep -oE "DEP[0-9]{3} \'[a-zA-Z0-9]+\'" | awk '{print $2}' >> ../unused_dependencies.txt || true
                 ;;
               "Java")
