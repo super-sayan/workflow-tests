@@ -183,7 +183,7 @@ jobs:
                 echo "Running depclean for Java..."
                 if [ -f "pom.xml" ]; then
                   depclean_output=$(mvn depclean:depclean || true)
-                  echo "$depclean_output" | grep -oE '^\[INFO\] - [a-zA-Z0-9._-]+' >> ../unused_dependencies.txt || true
+                  echo "$depclean_output" | grep -oE '[a-zA-Z0-9._-]+' >> ../unused_dependencies.txt || true
                 else
                   echo "No pom.xml found, skipping Java dependency check."
                 fi
