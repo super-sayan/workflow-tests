@@ -3,7 +3,6 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: 16.x # Node.js version
   DEPENDENCY_TRACK_API_KEY: ${{ secrets.DEPENDENCYTRACK_APIKEY }} # API Key for using Dependecy Track API
   DEPENDENCY_TRACK_BASE_URL: ${{ secrets.API_URL }} # URL of Dependency Track API server
   DEPENDENCY_TRACK_SHORT_URL: ${{ secrets.API_SURL }}
@@ -30,25 +29,64 @@ jobs:
       
       - name: Setup Node.js
         if: env.PRIMARY_LANGUAGE == 'JavaScript' || env.PRIMARY_LANGUAGE == 'TypeScript'
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-       
-      - name: Find package.json Files
-        id: locate-package-json
+        uses: actions/setup-node@v4.1.0
+      
+      - name: Setup Python
+        if: env.PRIMARY_LANGUAGE == 'Python'
+        uses: actions/setup-python@v5.3.0
+
+      - name: Setup Java JDK
+        if: env.PRIMARY_LANGUAGE == 'Java'
+        uses: actions/setup-java@v4.6.0
+        
+      - name: Setup Go
+        if: env.PRIMARY_LANGUAGE == 'Go'
+        uses: actions/setup-go@v5.2.0     
+
+      - name: Setup PHP
+        if: env.PRIMARY_LANGUAGE == 'PHP'
+        uses: shivammathur/setup-php@2.32.0
+        
+      - name: Find Dependency Files
+        id: locate-dependencies
         run: |
-          # Find all directories containing package.json
-          find . -name "package.json" -exec dirname {} \; > package_dirs.txt
+          case ${{ env.PRIMARY_LANGUAGE }} in
+            "JavaScript"|"TypeScript")
+              echo "Searching for JavaScript/TypeScript dependency files..."
+              find . -name "package.json" -exec dirname {} \; > dependency_dirs.txt
+              ;;
+            "Python")
+              echo "Searching for Python dependency files..."
+              find . -name "requirements.txt" -exec dirname {} \; > dependency_dirs.txt
+              ;;
+            "Java")
+              echo "Searching for Java dependency files..."
+              find . \( -name "pom.xml" -o -name "build.gradle" -o -name "build.gradle.kts" \) -exec dirname {} \; > dependency_dirs.txt
+              ;;
+            "Go")
+              echo "Searching for Go dependency files..."
+              find . -name "go.mod" -exec dirname {} \; > dependency_dirs.txt
+              ;;
+            "PHP")
+              echo "Searching for PHP dependency files..."
+              find . -name "composer.json" -exec dirname {} \; > dependency_dirs.txt
+              ;;
+            *)
+              echo "Unsupported or unknown language: ${{ env.PRIMARY_LANGUAGE }}"
+              exit 1
+              ;;
+          esac
 
           # Export as a reusable list
-          PACKAGE_DIRS=$(cat package_dirs.txt | tr '\n' ' ')
-          echo "Found directories: $PACKAGE_DIRS"
-          echo "PACKAGE_DIRS=$PACKAGE_DIRS" >> $GITHUB_ENV     
+          DEPENDENCY_DIRS=$(cat dependency_dirs.txt | tr '\n' ' ')
+          echo "Found directories: $DEPENDENCY_DIRS"
+          echo "DEPENDENCY_DIRS=$DEPENDENCY_DIRS" >> $GITHUB_ENV
+ 
           
       # Installing dependencies from package.json files of repo.
       - name: Install Dependencies
         run: |
-          for dir in ${{ env.PACKAGE_DIRS }}; do
+          for dir in ${{ env.DEPENDENCY_DIRS }}; do
             echo "Installing dependencies in $dir"
             cd "$dir" || exit
             npm install
@@ -60,7 +98,7 @@ jobs:
       - name: Run Depcheck and Write to List
         run: |
           echo "Unused Dependencies:" > unused_dependencies.txt
-          for dir in ${{ env.PACKAGE_DIRS }}; do
+          for dir in ${{ env.DEPENDENCY_DIRS }}; do
             echo "Running depcheck in $dir..."
             cd "$dir" || exit
             output=$(npx depcheck || true)
@@ -168,7 +206,7 @@ jobs:
           import os
 
           # Load package.json files and collect dependencies
-          package_dirs = "${{ env.PACKAGE_DIRS }}".split()
+          package_dirs = "${{ env.DEPENDENCY_DIRS }}".split()
           dependency_map = {}
 
           for dir_path in package_dirs:
@@ -215,7 +253,7 @@ jobs:
                   return "unknown"
               
               # Iterate through directories containing package-lock.json
-              package_dirs = "${{ env.PACKAGE_DIRS }}".split()
+              package_dirs = "${{ env.DEPENDENCY_DIRS }}".split()
               for dir_path in package_dirs:
                   lockfile_path = os.path.join(dir_path, "package-lock.json")
                   try:
