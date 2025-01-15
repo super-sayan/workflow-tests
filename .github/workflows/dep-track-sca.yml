@@ -146,12 +146,12 @@ jobs:
           for dir in ${{ env.DEPENDENCY_DIRS }}; do
             echo "Checking for unused dependencies in $dir..."
             cd "$dir" || exit
-      
+
             case ${{ env.PRIMARY_LANGUAGE }} in
               "JavaScript"|"TypeScript")
                 echo "Running depcheck for Node.js..."
                 output=$(npx depcheck || true)
-      
+
                 # Parse and annotate unused dependencies.
                 if echo "$output" | grep -q "Unused dependencies"; then
                   echo "$output" | sed -n '/Unused dependencies/,$p' | while IFS= read -r line; do
@@ -161,7 +161,7 @@ jobs:
                     fi
                   done
                 fi
-      
+
                 # Parse and annotate unused devDependencies.
                 if echo "$output" | grep -q "Unused devDependencies"; then
                   echo "$output" | sed -n '/Unused devDependencies/,$p' | while IFS= read -r line; do
@@ -173,11 +173,13 @@ jobs:
                 fi
                 ;;
               "Python")
+                pip install deptry
                 echo "Running deptry for Python..."
                 deptry_output=$(deptry . || true)
                 echo "$deptry_output" | grep -oE '^[a-zA-Z0-9_-]+' >> ../unused_dependencies.txt || true
                 ;;
               "Java")
+                mvn dependency:get -Dartifact=org.apache.maven.plugins:maven-dependency-plugin:3.5.0
                 echo "Running depclean for Java..."
                 if [ -f "pom.xml" ]; then
                   depclean_output=$(mvn depclean:depclean || true)
@@ -187,11 +189,13 @@ jobs:
                 fi
                 ;;
               "Go")
+                go install github.com/jondot/unused-deps@latest
                 echo "Running unused-deps for Go..."
                 unused_deps_output=$(go run github.com/jondot/unused-deps@latest || true)
                 echo "$unused_deps_output" >> ../unused_dependencies.txt || true
                 ;;
               "PHP")
+                composer require qossmic/deptrac --dev
                 echo "Running deptrac for PHP..."
                 if [ -f "deptrac.yaml" ]; then
                   deptrac_output=$(deptrac analyse deptrac.yaml || true)
@@ -205,10 +209,10 @@ jobs:
                 exit 1
                 ;;
             esac
-      
+
             cd - || exit
           done
-      
+
           cat unused_dependencies.txt
       
       # Installing Trivy for SBOM generation.
