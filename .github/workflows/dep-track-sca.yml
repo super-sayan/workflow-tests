@@ -177,6 +177,7 @@ jobs:
                 echo "Running deptry for Python..."
                 deptry_output=$(deptry . 2>&1)
                 echo "Outputs:"
+                echo "$deptry_output"
                 echo "$deptry_output" | grep -oE "DEP[0-9]{3} '[a-zA-Z0-9]+'" | sed "s/^DEP[0-9]{3} '//;s/'$//" >> ../unused_dependencies.txt || true
                 echo "$deptry_output" | grep -oE "DEP[0-9]{3} \'[a-zA-Z0-9]+\'" | awk '{print $2}' >> ../unused_dependencies.txt || true
                 ;;
