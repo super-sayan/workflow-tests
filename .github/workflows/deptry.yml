@@ -1,0 +1,254 @@
+name: Remove Unused Deps
+on:
+  workflow_dispatch:
+
+env:
+  DEPENDENCY_TRACK_API_KEY: ${{ secrets.DEPENDENCYTRACK_APIKEY }} # API Key for using Dependecy Track API
+  DEPENDENCY_TRACK_BASE_URL: ${{ secrets.API_URL }} # URL of Dependency Track API server
+  DEPENDENCY_TRACK_SHORT_URL: ${{ secrets.API_SURL }}
+  PROJECT_NAME: ${{ github.repository }}
+
+jobs:
+  code_analysis:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      # Define repo for output of results.
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      # Define Programming Language.
+      # Detect repository language
+      
+      - name: Detect Primary Language
+        id: detect-lang
+        run: |
+          PRIMARY_LANGUAGE=$(curl -s https://api.github.com/repos/${{ github.repository }} | jq -r '.language')
+          echo "Detected Language: $PRIMARY_LANGUAGE"
+          echo "PRIMARY_LANGUAGE=$PRIMARY_LANGUAGE" >> $GITHUB_ENV
+      
+      - name: Setup Node.js
+        if: env.PRIMARY_LANGUAGE == 'JavaScript' || env.PRIMARY_LANGUAGE == 'TypeScript'
+        uses: actions/setup-node@v4.1.0
+      
+      - name: Setup Python
+        if: env.PRIMARY_LANGUAGE == 'Python'
+        uses: actions/setup-python@v5.3.0
+
+      - name: Setup Java JDK
+        if: env.PRIMARY_LANGUAGE == 'Java'
+        uses: actions/setup-java@v4.6.0
+        
+      - name: Setup Go
+        if: env.PRIMARY_LANGUAGE == 'Go'
+        uses: actions/setup-go@v5.2.0     
+
+      - name: Setup PHP
+        if: env.PRIMARY_LANGUAGE == 'PHP'
+        uses: shivammathur/setup-php@2.32.0
+        
+      - name: Find Dependency Files
+        id: locate-dependencies
+        run: |
+          case ${{ env.PRIMARY_LANGUAGE }} in
+            "JavaScript"|"TypeScript")
+              echo "Searching for JavaScript/TypeScript dependency files..."
+              find . -name "package.json" -exec dirname {} \; > dependency_dirs.txt
+              ;;
+            "Python")
+              echo "Searching for Python dependency files..."
+              find . -name "requirements.txt" -exec dirname {} \; > dependency_dirs.txt
+              ;;
+            "Java")
+              echo "Searching for Java dependency files..."
+              find . \( -name "pom.xml" -o -name "build.gradle" -o -name "build.gradle.kts" \) -exec dirname {} \; > dependency_dirs.txt
+              ;;
+            "Go")
+              echo "Searching for Go dependency files..."
+              find . -name "go.mod" -exec dirname {} \; > dependency_dirs.txt
+              ;;
+            "PHP")
+              echo "Searching for PHP dependency files..."
+              find . -name "composer.json" -exec dirname {} \; > dependency_dirs.txt
+              ;;
+            *)
+              echo "Unsupported or unknown language: ${{ env.PRIMARY_LANGUAGE }}"
+              exit 1
+              ;;
+          esac
+
+          # Export as a reusable list
+          DEPENDENCY_DIRS=$(cat dependency_dirs.txt | tr '\n' ' ')
+          echo "Found directories: $DEPENDENCY_DIRS"
+          echo "DEPENDENCY_DIRS=$DEPENDENCY_DIRS" >> $GITHUB_ENV
+          
+      # Installing dependencies from package.json files of repo.
+      - name: Install Dependencies
+        run: |
+          for dir in ${{ env.DEPENDENCY_DIRS }}; do
+            echo "Installing dependencies in $dir"
+            cd "$dir" || exit
+            
+            case ${{ env.PRIMARY_LANGUAGE }} in
+              "JavaScript"|"TypeScript")
+                echo "Installing Node.js dependencies..."
+                npm install
+                ;;
+              "Python")
+                echo "Installing Python dependencies..."
+                if [ -f "requirements.txt" ]; then
+                  python -m pip install --upgrade pip
+                  pip install -r requirements.txt
+                else
+                  echo "No requirements.txt found, skipping..."
+                fi
+                ;;
+              "Java")
+                echo "Installing Java dependencies..."
+                if [ -f "pom.xml" ]; then
+                  mvn clean install
+                elif [ -f "build.gradle" ]; then
+                  gradle build
+                else
+                  echo "No recognized Java dependency file found, skipping..."
+                fi
+                ;;
+              "Go")
+                echo "Installing Go dependencies..."
+                if [ -f "go.mod" ]; then
+                  go mod tidy
+                else
+                  echo "No go.mod file found, skipping..."
+                fi
+                ;;
+              "PHP")
+                echo "Installing PHP dependencies..."
+                if [ -f "composer.json" ]; then
+                  composer install
+                else
+                  echo "No composer.json file found, skipping..."
+                fi
+                ;;
+              *)
+                echo "Unsupported or unknown language: ${{ env.PRIMARY_LANGUAGE }}"
+                exit 1
+                ;;
+            esac
+      
+            cd - || exit
+          done
+        shell: bash
+      
+      # Running Dependecy Check to define unused dependencies and create txt of unused deps.
+      - name: Run Unused Dependency Check
+        run: |
+          echo "Unused Dependencies:" > unused_dependencies.txt
+          for dir in ${{ env.DEPENDENCY_DIRS }}; do
+            echo "Checking for unused dependencies in $dir..."
+            cd "$dir" || exit
+      
+            case ${{ env.PRIMARY_LANGUAGE }} in
+              "JavaScript"|"TypeScript")
+                echo "Running depcheck for Node.js..."
+                output=$(npx depcheck || true)
+      
+                # Parse and annotate unused dependencies.
+                if echo "$output" | grep -q "Unused dependencies"; then
+                  echo "$output" | sed -n '/Unused dependencies/,$p' | while IFS= read -r line; do
+                    if [[ $line == "*"* ]]; then
+                      dep=$(echo "$line" | sed -E 's/\* //; s/:.*$//')
+                      echo "$dep" >> ../unused_dependencies.txt
+                    fi
+                  done
+                fi
+      
+                # Parse and annotate unused devDependencies.
+                if echo "$output" | grep -q "Unused devDependencies"; then
+                  echo "$output" | sed -n '/Unused devDependencies/,$p' | while IFS= read -r line; do
+                    if [[ $line == "*"* ]]; then
+                      dep=$(echo "$line" | sed -E 's/\* //; s/:.*$//')
+                      echo "$dep" >> ../unused_dependencies.txt
+                    fi
+                  done
+                fi
+                ;;
+              "Python")
+                echo "Running deptry for Python..."
+                deptry_output=$(deptry . || true)
+                echo "Outputs:"
+                echo "$deptry_output"
+                echo "$deptry_output" | grep -oE "DEP[0-9]{3} '[a-zA-Z0-9]+'" | sed "s/^DEP[0-9]{3} '//;s/'$//" >> ../unused_dependencies.txt
+                echo "$deptry_output" | grep -oE "DEP[0-9]{3} \'[a-zA-Z0-9]+\'" | awk '{print $2}' >> ../unused_dependencies.txt
+                echo "$deptry_output" | grep -oE '^[a-zA-Z0-9_-]+' >> ../unused_dependencies.txt
+                ;;
+              "Java")
+                echo "Running depclean for Java..."
+                if [ -f "pom.xml" ]; then
+                  depclean_output=$(mvn depclean:depclean || true)
+                  echo "$depclean_output" | grep -oE '^\[INFO\] - [a-zA-Z0-9._-]+' >> ../unused_dependencies.txt || true
+                else
+                  echo "No pom.xml found, skipping Java dependency check."
+                fi
+                ;;
+              "Go")
+                echo "Running unused-deps for Go..."
+                unused_deps_output=$(go run github.com/jondot/unused-deps@latest || true)
+                echo "$unused_deps_output" >> ../unused_dependencies.txt || true
+                ;;
+              "PHP")
+                echo "Running deptrac for PHP..."
+                if [ -f "deptrac.yaml" ]; then
+                  deptrac_output=$(deptrac analyse deptrac.yaml || true)
+                  echo "$deptrac_output" >> ../unused_dependencies.txt || true
+                else
+                  echo "No deptrac.yaml found, skipping PHP dependency check."
+                fi
+                ;;
+              *)
+                echo "Unsupported or unknown language: ${{ env.PRIMARY_LANGUAGE }}"
+                exit 1
+                ;;
+            esac
+      
+            cd - || exit
+          done
+      
+          cat unused_dependencies.txt
+      
+      # Installing Trivy for SBOM generation.
+      - name: Install Trivy for SBOM Generation
+        run: |
+          curl -sSL https://github.com/aquasecurity/trivy/releases/download/v0.58.0/trivy_0.58.0_Linux-64bit.tar.gz | sudo tar xz -C /usr/local/bin
+      
+      # Generating SBOM using Trivy.
+      - name: Generate SBOM using Trivy
+        run: |
+          trivy fs --format cyclonedx --output sbom.json .
+
+      # Remove unused dependecies from generated SBOM.
+      - name: Remove Unused Dependencies from SBOM
+        run: |
+          echo "Removing unused dependencies from SBOM"
+    
+          # Read unused dependencies into a list.
+          unused_deps=$(cat unused_dependencies.txt)
+    
+          # Convert the list into a JSON array of objects with `group` and `name`.
+          unused_json=$(echo "$unused_deps" | jq -R -s '
+            split("\n") | 
+            map(select(length > 0)) |
+            map(if test("^@") then 
+                  {group: (split("/")[0]), name: (split("/")[1])} 
+                else 
+                  {group: null, name: .} 
+                end)
+          ')
+
+          # Filter components, matching against both `group` and `name`.
+          jq --argjson unused "$unused_json" '
+            .components |= map(select(
+              .name as $name | 
+              .group as $group |
+              ($unused | map(.name == $name and .group == $group) | any) | not
+            ))
+          ' sbom.json > filtered_sbom.json
