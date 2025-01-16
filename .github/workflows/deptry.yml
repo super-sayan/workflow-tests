@@ -180,6 +180,7 @@ jobs:
                 # echo "version 1:"
                 # awk -F"'" '/'\''/ {print $2}' deptry_output.txt
                 # echo "version 2:"
+                echo "$deptry_output" | awk -F"'" '/'\''/ {print $2}'
                 echo "$deptry_output" | awk -F"'" '/'\''/ {print $2}' >> ../unused_dependencies.txt
                 ;;
               "Java")
