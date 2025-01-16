@@ -191,7 +191,7 @@ jobs:
                 grep -oE "requirements\.txt: DEP[0-9]{3} '[^']+'" deptry_output.txt | while IFS= read -r line; do
                   # Extract dependency name from the output
                   dep=$(echo "$line" | sed -E "s/.*DEP[0-9]{3} '([^']+)'/\1/")
-                  echo "$dep" >> ../unused_dependencies.txt
+                  echo "$dep"
                 done
                 # fi
                 ;;
