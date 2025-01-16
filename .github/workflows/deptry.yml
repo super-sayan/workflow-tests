@@ -188,7 +188,7 @@ jobs:
                 echo "3"
                 cat deptry_output.txt | grep -oE '^[a-zA-Z0-9_-]+' # >> ../unused_dependencies.txt
                 echo "Parsing deptry output..."
-                cat deptry_output.txt | grep -oE "requirements\.txt: DEP[0-9]{3} '[^']+'"
+                cat deptry_output.txt | grep -oE "requirements\.txt: DEP[0-9]{3}"
                 # fi
                 ;;
               "Java")
