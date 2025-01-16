@@ -188,7 +188,7 @@ jobs:
                 echo "3"
                 cat deptry_output.txt | grep -oE '^[a-zA-Z0-9_-]+' # >> ../unused_dependencies.txt
                 echo "Parsing deptry output..."
-                awk '{print $3}' deptry_output.txt
+                awk -F"'" '/'\''/ {print $2}' "$deptry_output"
                 echo "Upgraded parsing:"
                 awk -F"'" '/'\''/ {print $2}' deptry_output.txt
                 # fi
