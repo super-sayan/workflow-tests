@@ -32,7 +32,6 @@ jobs:
         uses: actions/setup-node@v4.1.0
       
       - name: Setup Python
-        if: env.PRIMARY_LANGUAGE == 'Python'
         uses: actions/setup-python@v5.3.0
 
       - name: Setup Java JDK
@@ -282,11 +281,13 @@ jobs:
           -o epss.json  
           echo "EPSS data fetched successfully." 
         # -H "Accept: application/sarif+json" \
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
+        
+      - name: Check EPSS
+        uses: actions/upload-artifact@master
         with:
-          python-version: '3.x'
+           name: check results
+           path: epss.json
+
       # Generate a consolidated dependencies file from package.json files
       - name: Gather Dependencies from package.json Files
         run: |
