@@ -182,8 +182,8 @@ jobs:
                   # echo "Deptry did not produce any output."
                 # else
                 echo "Outputs:"
-                cat deptry_output
-                cat deptry_output | grep -oE "DEP[0-9]{3} '[a-zA-Z0-9]+'" | sed "s/^DEP[0-9]{3} '//;s/'$//" >> ../unused_dependencies.txt
+                cat deptry_output.txt
+                cat deptry_output.txt | grep -oE "DEP[0-9]{3} '[a-zA-Z0-9]+'" | sed "s/^DEP[0-9]{3} '//;s/'$//" >> ../unused_dependencies.txt
                 # echo "$deptry_output" | grep -oE "DEP[0-9]{3} \'[a-zA-Z0-9]+\'" | awk '{print $2}' >> ../unused_dependencies.txt
                 # echo "$deptry_output" | grep -oE '^[a-zA-Z0-9_-]+' >> ../unused_dependencies.txt
                 # fi
