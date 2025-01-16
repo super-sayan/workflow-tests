@@ -176,7 +176,8 @@ jobs:
                 pip install deptry
                 echo "Running deptry for Python..."
                 # deptry_output=$(deptry . || true)
-                deptry . 1> deptry_output
+                deptry_output=$(deptry . 2>&1 || true)
+                echo "$deptry_output" > deptry_output.txt
                 # if [ -z "$deptry_output" ]; then
                   # echo "Deptry did not produce any output."
                 # else
