@@ -175,14 +175,12 @@ jobs:
               "Python")
                 pip install deptry
                 echo "Running deptry for Python..."
-                # deptry_output=$(deptry . || true)
                 deptry_output=$(deptry . 2>&1 || true)
-                echo "$deptry_output" > deptry_output.txt
-                echo "version 1:"
-                awk -F"'" '/'\''/ {print $2}' deptry_output.txt
-                echo "version 2:"
-                echo "$deptry_output" | awk -F"'" '/'\''/ {print $2}'
-                # fi
+                # echo "$deptry_output" > deptry_output.txt
+                # echo "version 1:"
+                # awk -F"'" '/'\''/ {print $2}' deptry_output.txt
+                # echo "version 2:"
+                echo "$deptry_output" | awk -F"'" '/'\''/ {print $2}' >> ../unused_dependencies.txt
                 ;;
               "Java")
                 echo "Running depclean for Java..."
