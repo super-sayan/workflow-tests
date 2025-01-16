@@ -176,7 +176,6 @@ jobs:
                 pip install deptry
                 echo "Running deptry for Python..."
                 deptry_output=$(deptry . 2>&1 || true)
-                echo "$deptry_output" | awk -F"'" '/'\''/ {print $2}'
                 echo "$deptry_output" | awk -F"'" '/'\''/ {print $2}' >> unused_dependencies.txt
                 ;;
               "Java")
@@ -250,3 +249,9 @@ jobs:
               ($unused | map(.name == $name and .group == $group) | any) | not
             ))
           ' sbom.json > filtered_sbom.json
+      
+      - name: Upload Test results
+        uses: actions/upload-artifact@master
+        with:
+           name: Unused Deps
+           path: filtered_sbom.json
