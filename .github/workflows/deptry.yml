@@ -221,7 +221,13 @@ jobs:
       - name: Generate SBOM using Trivy
         run: |
           trivy fs --format cyclonedx --output sbom.json .
-
+      
+      - name: Upload Test results
+        uses: actions/upload-artifact@master
+        with:
+           name: Unfiltered Deps
+           path: sbom.json
+           
       # Remove unused dependecies from generated SBOM.
       - name: Remove Unused Dependencies from SBOM
         run: |
@@ -253,5 +259,5 @@ jobs:
       - name: Upload Test results
         uses: actions/upload-artifact@master
         with:
-           name: Unused Deps
+           name: Filtered Deps
            path: filtered_sbom.json
