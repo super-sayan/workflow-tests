@@ -187,8 +187,12 @@ jobs:
                 cat deptry_output.txt | grep -oE "DEP[0-9]{3} \'[a-zA-Z0-9]+\'" | awk '{print $2}' # >> ../unused_dependencies.txt
                 echo "3"
                 cat deptry_output.txt | grep -oE '^[a-zA-Z0-9_-]+' # >> ../unused_dependencies.txt
-                echo "4"
-                cat deptry_output.txt | grep -oE "\'[a-zA-Z0-9_-]+\'"
+                echo "Parsing deptry output..."
+                grep -oE "requirements\.txt: DEP[0-9]{3} '[^']+'" deptry_output.txt | while IFS= read -r line; do
+                  # Extract dependency name from the output
+                  dep=$(echo "$line" | sed -E "s/.*DEP[0-9]{3} '([^']+)'/\1/")
+                  echo "$dep" >> ../unused_dependencies.txt
+                done
                 # fi
                 ;;
               "Java")
