@@ -126,7 +126,7 @@ jobs:
           apiKey: ${{ env.DEPENDENCY_TRACK_API_KEY }}
           projectName: ${{ env.PROJECT_NAME }}
           projectVersion: '1.0.0'
-          bomFilename: "./filtered_sbom.json"
+          bomFilename: "./sbom.json"
           autoCreate: true
 
       # Getting uuid of Project, that we have created on the previous step.
