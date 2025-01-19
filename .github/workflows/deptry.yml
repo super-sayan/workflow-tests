@@ -150,7 +150,7 @@ jobs:
                           package_data = json.load(f)
                           dependencies = package_data.get("dependencies", {})
                           for dep, version in dependencies.items():
-                              dependency_map[dep] = {
+                              dependency_map[dep] += {
                                   "version": version,
                                   "file": package_json_path.replace("./", "")
                               }
@@ -172,7 +172,7 @@ jobs:
                               if match:
                                   dep = match.group(1)
                                   version = match.group(2) if match.group(2) else "unknown"
-                                  dependency_map[dep] = {
+                                  dependency_map[dep] += {
                                       "version": version,
                                       "file": requirements_txt_path.replace("./", "")
                                   }
