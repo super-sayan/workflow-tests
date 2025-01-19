@@ -150,10 +150,18 @@ jobs:
                           package_data = json.load(f)
                           dependencies = package_data.get("dependencies", {})
                           for dep, version in dependencies.items():
-                              dependency_map[dep] += {
-                                  "version": version,
-                                  "file": package_json_path.replace("./", "")
-                              }
+                              if dep not in dependency_map:
+                                  dependency_map[dep] = {
+                                      "version": version,
+                                      "files": [package_json_path.replace("./", "")]
+                                  }
+                              else:
+                                  # Append the file and avoid duplicates
+                                  dependency_map[dep]["files"].append(package_json_path.replace("./", ""))
+                                  dependency_map[dep]["files"] = list(set(dependency_map[dep]["files"]))
+                                  # Optionally, update the version if it's more specific
+                                  if version != dependency_map[dep]["version"]:
+                                      dependency_map[dep]["version"] = version
                   except json.JSONDecodeError:
                       print(f"Failed to parse JSON in {package_json_path}")
                   except UnicodeDecodeError:
@@ -172,10 +180,18 @@ jobs:
                               if match:
                                   dep = match.group(1)
                                   version = match.group(2) if match.group(2) else "unknown"
-                                  dependency_map[dep] += {
-                                      "version": version,
-                                      "file": requirements_txt_path.replace("./", "")
-                                  }
+                                  if dep not in dependency_map:
+                                      dependency_map[dep] = {
+                                          "version": version,
+                                          "files": [requirements_txt_path.replace("./", "")]
+                                      }
+                                  else:
+                                      # Append the file and avoid duplicates
+                                      dependency_map[dep]["files"].append(requirements_txt_path.replace("./", ""))
+                                      dependency_map[dep]["files"] = list(set(dependency_map[dep]["files"]))
+                                      # Optionally, update the version if it's more specific
+                                      if version != "unknown" and version != dependency_map[dep]["version"]:
+                                          dependency_map[dep]["version"] = version
                   except UnicodeDecodeError:
                       print(f"Encoding error while reading {requirements_txt_path}")
               else:
