@@ -136,47 +136,55 @@ jobs:
           import json
           import os
           import re
-
+          
           # Load package.json and requirements.txt files and collect dependencies
-          package_dirs = "${{ env.DEPENDENCY_DIRS }}".split()
+          package_dirs = "./client ./server".split()
           dependency_map = {}
-
+          
           for dir_path in package_dirs:
               # Handle package.json
               package_json_path = os.path.join(dir_path, "package.json")
-              try:
-                  with open(package_json_path, "r") as f:
-                      package_data = json.load(f)
-                      dependencies = package_data.get("dependencies", {})
-                      for dep, version in dependencies.items():
-                          dependency_map[dep] = {
-                              "version": version,
-                              "file": package_json_path.replace("./", "")
-                          }
-              except (json.JSONDecodeError, FileNotFoundError):
-                  print(f"Failed to parse {package_json_path}")
-
-              # Handle requirements.txt
-              requirements_txt_path = os.path.join(dir_path, "requirements.txt")
-              try:
-                  with open(requirements_txt_path, "r") as f:
-                      for line in f:
-                          # Match dependencies of the form: package==version or package>=version
-                          match = re.match(r"^([a-zA-Z0-9_\-]+)([=><]+[0-9\.]+)?", line.strip())
-                          if match:
-                              dep = match.group(1)
-                              version = match.group(2) if match.group(2) else "unknown"
+              if os.path.exists(package_json_path):
+                  try:
+                      with open(package_json_path, "r", encoding="utf-8") as f:
+                          package_data = json.load(f)
+                          dependencies = package_data.get("dependencies", {})
+                          for dep, version in dependencies.items():
                               dependency_map[dep] = {
                                   "version": version,
-                                  "file": requirements_txt_path.replace("./", "")
+                                  "file": package_json_path.replace("./", "")
                               }
-              except FileNotFoundError:
+                  except json.JSONDecodeError:
+                      print(f"Failed to parse JSON in {package_json_path}")
+                  except UnicodeDecodeError:
+                      print(f"Encoding error while reading {package_json_path}")
+              else:
+                  print(f"No package.json found in {dir_path}")
+          
+              # Handle requirements.txt
+              requirements_txt_path = os.path.join(dir_path, "requirements.txt")
+              if os.path.exists(requirements_txt_path):
+                  try:
+                      with open(requirements_txt_path, "r", encoding="utf-8") as f:
+                          for line in f:
+                              # Match dependencies of the form: package==version or package>=version
+                              match = re.match(r"^([a-zA-Z0-9_\-]+)([=><]+[0-9\.]+)?", line.strip())
+                              if match:
+                                  dep = match.group(1)
+                                  version = match.group(2) if match.group(2) else "unknown"
+                                  dependency_map[dep] = {
+                                      "version": version,
+                                      "file": requirements_txt_path.replace("./", "")
+                                  }
+                  except UnicodeDecodeError:
+                      print(f"Encoding error while reading {requirements_txt_path}")
+              else:
                   print(f"No requirements.txt found in {dir_path}")
-
+          
           # Save consolidated dependencies for later use
-          with open("dependency_locations.json", "w") as out_file:
+          with open("dependency_locations.json", "w", encoding="utf-8") as out_file:
               json.dump(dependency_map, out_file, indent=2)
-
+          
           print("Dependency locations saved to dependency_locations.json")
           EOF
 
