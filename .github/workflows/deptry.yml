@@ -70,6 +70,8 @@ jobs:
             pip install deptry
             echo "Running deptry for Python..."
             deptry_output=$(deptry . 2>&1 || true)
+            echo "Deptry output:"
+            echo "$deptry_output"
             echo "$deptry_output" | awk -F"'" '/'\''/ {print $2}' >> unused_dependencies.txt
             cd - || exit
           done
