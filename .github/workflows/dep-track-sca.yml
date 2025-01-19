@@ -297,9 +297,9 @@ jobs:
                       {
                           "tool": {
                               "driver": {
-                                  "fullName": "OWASP Dependency Track Tests",
+                                  "fullName": "OWASP Dependency Track",
                                   "informationUri": "https://dependency-track.org/",
-                                  "name": "Dependency-Track",
+                                  "name": "Dependency-Track tests",
                                   "rules": []
                               }
                           },
