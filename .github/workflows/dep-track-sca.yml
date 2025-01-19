@@ -147,12 +147,6 @@ jobs:
           -o epss.json  
           echo "EPSS data fetched successfully." 
         # -H "Accept: application/sarif+json" \
-        
-      - name: Check EPSS
-        uses: actions/upload-artifact@master
-        with:
-           name: check results
-           path: epss.json
 
       - name: Gather Dependencies from package.json and requirements.txt Files
         run: |
