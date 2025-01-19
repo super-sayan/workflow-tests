@@ -1,4 +1,4 @@
-oname: Remove Unused Deps
+name: Remove Unused Deps
 on:
   workflow_dispatch:
 
