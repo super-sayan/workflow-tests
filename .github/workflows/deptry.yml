@@ -69,7 +69,7 @@ jobs:
             else
               pip install deptry
               echo "Running deptry for Python..."
-              deptry . 2>&1 deptry_output
+              deptry . 1> deptry_output
               echo "Deptry output:"
               cat deptry_output
               grep "DEP002" deptry_output | sed -E "s/requirements\.txt: DEP002 '\''([^\']+)'\'',.*$/\1/" >> unused_dependencies.txt
