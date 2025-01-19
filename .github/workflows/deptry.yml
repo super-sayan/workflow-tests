@@ -1,4 +1,4 @@
-name: Remove Unused Deps
+oname: Remove Unused Deps
 on:
   workflow_dispatch:
 
@@ -69,10 +69,10 @@ jobs:
             else
               pip install deptry
               echo "Running deptry for Python..."
-              deptry_output=$(deptry . 2>&1 || true)
+              deptry . 2>&1 deptry_output
               echo "Deptry output:"
-              echo "$deptry_output"
-              grep "DEP002" $deptry_output | sed -E "s/requirements\.txt: DEP002 '\''([^\']+)'\'',.*$/\1/" >> unused_dependencies.txt
+              cat deptry_output
+              grep "DEP002" deptry_output | sed -E "s/requirements\.txt: DEP002 '\''([^\']+)'\'',.*$/\1/" >> unused_dependencies.txt
             fi
             cd - || exit
           done
