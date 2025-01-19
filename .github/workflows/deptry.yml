@@ -72,7 +72,7 @@ jobs:
               deptry_output=$(deptry . 2>&1 || true)
               echo "Deptry output:"
               echo "$deptry_output"
-              grep "DEP002" $deptry_output | sed -E 's/requirements\.txt: DEP002 '\''([^\']+)'\'',.*$/\1/'
+              grep "DEP002" $deptry_output | sed -E 's/requirements\.txt: DEP002 '\''([^\']+)'\'',.*$/\1/' >> unused_dependencies.txt
             fi
             cd - || exit
           done
