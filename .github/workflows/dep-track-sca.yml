@@ -91,32 +91,32 @@ jobs:
           trivy fs --format cyclonedx --output sbom.json .
            
       # Remove unused dependecies from generated SBOM.
-      #- name: Remove Unused Dependencies from SBOM
-      #  run: |
-      #    echo "Removing unused dependencies from SBOM"
+      - name: Remove Unused Dependencies from SBOM
+        run: |
+          echo "Removing unused dependencies from SBOM"
     
           # Read unused dependencies into a list.
-          #unused_deps=$(cat unused_dependencies.txt)
+          unused_deps=$(cat unused_dependencies.txt)
     
           # Convert the list into a JSON array of objects with `group` and `name`.
-          #unused_json=$(echo "$unused_deps" | jq -R -s '
-            #split("\n") | 
-            #map(select(length > 0)) |
-            #map(if test("^@") then 
-             #     {group: (split("/")[0]), name: (split("/")[1])} 
-             #   else 
-             #     {group: null, name: .} 
-             #   end)
-          #')
+          unused_json=$(echo "$unused_deps" | jq -R -s '
+            split("\n") | 
+            map(select(length > 0)) |
+            map(if test("^@") then 
+                  {group: (split("/")[0]), name: (split("/")[1])} 
+                else 
+                  {group: null, name: .} 
+                end)
+          ')
 
           # Filter components, matching against both `group` and `name`.
-          #jq --argjson unused "$unused_json" '
-           # .components |= map(select(
-            #  .name as $name | 
-             # .group as $group |
-              #($unused | map(.name == $name and .group == $group) | any) | not
-            #))
-          #' sbom.json > filtered_sbom.json
+          jq --argjson unused "$unused_json" '
+            .components |= map(select(
+              .name as $name | 
+              .group as $group |
+              ($unused | map(.name == $name and .group == $group) | any) | not
+            ))
+          ' sbom.json > filtered_sbom.json
            
       # An official Dependecy Track action for SBOM upload, doesn't work good with full URL of Dep Track Server.
       - name: Upload SBOM to Dependency Track
@@ -126,7 +126,7 @@ jobs:
           apiKey: ${{ env.DEPENDENCY_TRACK_API_KEY }}
           projectName: ${{ env.PROJECT_NAME }}
           projectVersion: '1.0.0'
-          bomFilename: "./sbom.json"
+          bomFilename: "./filtered_sbom.json"
           autoCreate: true
 
       # Getting uuid of Project, that we have created on the previous step.
