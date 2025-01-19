@@ -183,5 +183,5 @@ jobs:
       - name: Upload Test results
         uses: actions/upload-artifact@master
         with:
-           name: Filtered Deps
+           name: dep locs
            path: dependency_locations.json
