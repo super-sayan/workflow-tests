@@ -73,7 +73,7 @@ jobs:
               echo "Deptry output:"
               echo "$deptry_output"
               echo "$deptry_output" > deptry_output
-              grep "DEP002" deptry_output | sed -E "s/requirements\.txt: DEP002 '\''([^\']+)'\'',.*$/\1/" >> ../unused_dependencies.txt
+              grep "DEP002" deptry_output | awk -F"'" '/'\''/ {print $2}' >> ../unused_dependencies.txt
             fi
             cd - || exit
           done
