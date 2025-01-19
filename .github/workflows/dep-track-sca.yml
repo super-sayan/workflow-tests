@@ -122,7 +122,7 @@ jobs:
         uses: actions/upload-artifact@master
         with:
            name: Filtered Deps
-           path: filtered_sbom.json
+           path: sbom.json
            
       # An official Dependecy Track action for SBOM upload, doesn't work good with full URL of Dep Track Server.
       - name: Upload SBOM to Dependency Track
