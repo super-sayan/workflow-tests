@@ -17,65 +17,20 @@ jobs:
       # Define repo for output of results.
       - name: Checkout Code
         uses: actions/checkout@v4
-      # Define Programming Language.
-      # Detect repository language
-      
-      - name: Detect Primary Language
-        id: detect-lang
-        run: |
-          PRIMARY_LANGUAGE=$(curl -s https://api.github.com/repos/${{ github.repository }} | jq -r '.language')
-          echo "Detected Language: $PRIMARY_LANGUAGE"
-          echo "PRIMARY_LANGUAGE=$PRIMARY_LANGUAGE" >> $GITHUB_ENV
       
       - name: Setup Node.js
-        if: env.PRIMARY_LANGUAGE == 'JavaScript' || env.PRIMARY_LANGUAGE == 'TypeScript'
         uses: actions/setup-node@v4.1.0
       
       - name: Setup Python
         uses: actions/setup-python@v5.3.0
-
-      - name: Setup Java JDK
-        if: env.PRIMARY_LANGUAGE == 'Java'
-        uses: actions/setup-java@v4.6.0
-        
-      - name: Setup Go
-        if: env.PRIMARY_LANGUAGE == 'Go'
-        uses: actions/setup-go@v5.2.0     
-
-      - name: Setup PHP
-        if: env.PRIMARY_LANGUAGE == 'PHP'
-        uses: shivammathur/setup-php@2.32.0
         
       - name: Find Dependency Files
         id: locate-dependencies
         run: |
-          case ${{ env.PRIMARY_LANGUAGE }} in
-            "JavaScript"|"TypeScript")
-              echo "Searching for JavaScript/TypeScript dependency files..."
-              find . -name "package.json" -exec dirname {} \; > dependency_dirs.txt
-              ;;
-            "Python")
-              echo "Searching for Python dependency files..."
-              find . -name "requirements.txt" -exec dirname {} \; > dependency_dirs.txt
-              ;;
-            "Java")
-              echo "Searching for Java dependency files..."
-              find . \( -name "pom.xml" -o -name "build.gradle" -o -name "build.gradle.kts" \) -exec dirname {} \; > dependency_dirs.txt
-              ;;
-            "Go")
-              echo "Searching for Go dependency files..."
-              find . -name "go.mod" -exec dirname {} \; > dependency_dirs.txt
-              ;;
-            "PHP")
-              echo "Searching for PHP dependency files..."
-              find . -name "composer.json" -exec dirname {} \; > dependency_dirs.txt
-              ;;
-            *)
-              echo "Unsupported or unknown language: ${{ env.PRIMARY_LANGUAGE }}"
-              exit 1
-              ;;
-          esac
-
+          echo "Searching for JavaScript/TypeScript dependency files..."
+          find . -name "package.json" -exec dirname {} \; >> dependency_dirs.txt
+          echo "Searching for Python dependency files..."
+          find . -name "requirements.txt" -exec dirname {} \; >> dependency_dirs.txt
           # Export as a reusable list
           DEPENDENCY_DIRS=$(cat dependency_dirs.txt | tr '\n' ' ')
           echo "Found directories: $DEPENDENCY_DIRS"
