@@ -35,63 +35,6 @@ jobs:
           DEPENDENCY_DIRS=$(cat dependency_dirs.txt | tr '\n' ' ')
           echo "Found directories: $DEPENDENCY_DIRS"
           echo "DEPENDENCY_DIRS=$DEPENDENCY_DIRS" >> $GITHUB_ENV
-          
-      # Installing dependencies from package.json files of repo.
-      - name: Install Dependencies
-        run: |
-          for dir in ${{ env.DEPENDENCY_DIRS }}; do
-            echo "Installing dependencies in $dir"
-            cd "$dir" || exit
-            
-            case ${{ env.PRIMARY_LANGUAGE }} in
-              "JavaScript"|"TypeScript")
-                echo "Installing Node.js dependencies..."
-                npm install
-                ;;
-              "Python")
-                echo "Installing Python dependencies..."
-                if [ -f "requirements.txt" ]; then
-                  python -m pip install --upgrade pip
-                  pip install -r requirements.txt
-                else
-                  echo "No requirements.txt found, skipping..."
-                fi
-                ;;
-              "Java")
-                echo "Installing Java dependencies..."
-                if [ -f "pom.xml" ]; then
-                  mvn clean install
-                elif [ -f "build.gradle" ]; then
-                  gradle build
-                else
-                  echo "No recognized Java dependency file found, skipping..."
-                fi
-                ;;
-              "Go")
-                echo "Installing Go dependencies..."
-                if [ -f "go.mod" ]; then
-                  go mod tidy
-                else
-                  echo "No go.mod file found, skipping..."
-                fi
-                ;;
-              "PHP")
-                echo "Installing PHP dependencies..."
-                if [ -f "composer.json" ]; then
-                  composer install
-                else
-                  echo "No composer.json file found, skipping..."
-                fi
-                ;;
-              *)
-                echo "Unsupported or unknown language: ${{ env.PRIMARY_LANGUAGE }}"
-                exit 1
-                ;;
-            esac
-      
-            cd - || exit
-          done
-        shell: bash
       
       # Running Dependecy Check to define unused dependencies and create txt of unused deps.
       - name: Run Unused Dependency Check
@@ -100,70 +43,38 @@ jobs:
           for dir in ${{ env.DEPENDENCY_DIRS }}; do
             echo "Checking for unused dependencies in $dir..."
             cd "$dir" || exit
+            if [ -f "package.json" ]; then
+              echo "Running depcheck for Node.js..."
+              output=$(npx depcheck || true)
 
-            case ${{ env.PRIMARY_LANGUAGE }} in
-              "JavaScript"|"TypeScript")
-                echo "Running depcheck for Node.js..."
-                output=$(npx depcheck || true)
+              # Parse and annotate unused dependencies.
+              if echo "$output" | grep -q "Unused dependencies"; then
+                echo "$output" | sed -n '/Unused dependencies/,$p' | while IFS= read -r line; do
+                  if [[ $line == "*"* ]]; then
+                    dep=$(echo "$line" | sed -E 's/\* //; s/:.*$//')
+                    echo "$dep" >> ../unused_dependencies.txt
+                  fi
+                done
+              fi
 
-                # Parse and annotate unused dependencies.
-                if echo "$output" | grep -q "Unused dependencies"; then
-                  echo "$output" | sed -n '/Unused dependencies/,$p' | while IFS= read -r line; do
-                    if [[ $line == "*"* ]]; then
-                      dep=$(echo "$line" | sed -E 's/\* //; s/:.*$//')
-                      echo "$dep" >> ../unused_dependencies.txt
-                    fi
-                  done
-                fi
-
-                # Parse and annotate unused devDependencies.
-                if echo "$output" | grep -q "Unused devDependencies"; then
-                  echo "$output" | sed -n '/Unused devDependencies/,$p' | while IFS= read -r line; do
-                    if [[ $line == "*"* ]]; then
-                      dep=$(echo "$line" | sed -E 's/\* //; s/:.*$//')
-                      echo "$dep" >> ../unused_dependencies.txt
-                    fi
-                  done
-                fi
-                ;;
-              "Python")
-                pip install deptry
-                echo "Running deptry for Python..."
-                deptry_output=$(deptry . 2>&1 || true)
-                echo "$deptry_output" | awk -F"'" '/'\''/ {print $2}' >> unused_dependencies.txt
-                ;;
-              "Java")
-                mvn dependency:get -Dartifact=org.apache.maven.plugins:maven-dependency-plugin:3.5.0
-                echo "Running depclean for Java..."
-                if [ -f "pom.xml" ]; then
-                  depclean_output=$(mvn depclean:depclean || true)
-                  echo "$depclean_output" | grep -oE '[a-zA-Z0-9._-]+' >> ../unused_dependencies.txt || true
-                else
-                  echo "No pom.xml found, skipping Java dependency check."
-                fi
-                ;;
-              "Go")
-                go install github.com/jondot/unused-deps@latest
-                echo "Running unused-deps for Go..."
-                unused_deps_output=$(go run github.com/jondot/unused-deps@latest || true)
-                echo "$unused_deps_output" >> ../unused_dependencies.txt || true
-                ;;
-              "PHP")
-                composer require qossmic/deptrac --dev
-                echo "Running deptrac for PHP..."
-                if [ -f "deptrac.yaml" ]; then
-                  deptrac_output=$(deptrac analyse deptrac.yaml || true)
-                  echo "$deptrac_output" >> ../unused_dependencies.txt || true
-                else
-                  echo "No deptrac.yaml found, skipping PHP dependency check."
-                fi
-                ;;
-              *)
-                echo "Unsupported or unknown language: ${{ env.PRIMARY_LANGUAGE }}"
-                exit 1
-                ;;
-            esac
-
+              # Parse and annotate unused devDependencies.
+              if echo "$output" | grep -q "Unused devDependencies"; then
+                echo "$output" | sed -n '/Unused devDependencies/,$p' | while IFS= read -r line; do
+                  if [[ $line == "*"* ]]; then
+                    dep=$(echo "$line" | sed -E 's/\* //; s/:.*$//')
+                    echo "$dep" >> ../unused_dependencies.txt
+                  fi
+                done
+              fi
+            else
+              pip install deptry
+              echo "Running deptry for Python..."
+              deptry_output=$(deptry . 2>&1 || true)
+              echo "Deptry output:"
+              echo "$deptry_output"
+              echo "$deptry_output" > deptry_output
+              grep "DEP002" deptry_output | awk -F"'" '{print $2}' >> ../unused_dependencies.txt
+            fi
             cd - || exit
           done
 
@@ -178,7 +89,7 @@ jobs:
       - name: Generate SBOM using Trivy
         run: |
           trivy fs --format cyclonedx --output sbom.json .
-
+           
       # Remove unused dependecies from generated SBOM.
       - name: Remove Unused Dependencies from SBOM
         run: |
@@ -243,18 +154,19 @@ jobs:
            name: check results
            path: epss.json
 
-      # Generate a consolidated dependencies file from package.json files
-      - name: Gather Dependencies from package.json Files
+      - name: Gather Dependencies from package.json and requirements.txt Files
         run: |
           python - <<EOF
           import json
           import os
+          import re
 
-          # Load package.json files and collect dependencies
+          # Load package.json and requirements.txt files and collect dependencies
           package_dirs = "${{ env.DEPENDENCY_DIRS }}".split()
           dependency_map = {}
 
           for dir_path in package_dirs:
+              # Handle package.json
               package_json_path = os.path.join(dir_path, "package.json")
               try:
                   with open(package_json_path, "r") as f:
@@ -267,6 +179,23 @@ jobs:
                           }
               except (json.JSONDecodeError, FileNotFoundError):
                   print(f"Failed to parse {package_json_path}")
+
+              # Handle requirements.txt
+              requirements_txt_path = os.path.join(dir_path, "requirements.txt")
+              try:
+                  with open(requirements_txt_path, "r") as f:
+                      for line in f:
+                          # Match dependencies of the form: package==version or package>=version
+                          match = re.match(r"^([a-zA-Z0-9_\-]+)([=><]+[0-9\.]+)?", line.strip())
+                          if match:
+                              dep = match.group(1)
+                              version = match.group(2) if match.group(2) else "unknown"
+                              dependency_map[dep] = {
+                                  "version": version,
+                                  "file": requirements_txt_path.replace("./", "")
+                              }
+              except FileNotFoundError:
+                  print(f"No requirements.txt found in {dir_path}")
 
           # Save consolidated dependencies for later use
           with open("dependency_locations.json", "w") as out_file:
