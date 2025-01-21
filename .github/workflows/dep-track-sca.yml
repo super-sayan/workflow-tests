@@ -100,6 +100,7 @@ jobs:
               echo "$deptry_output" > deptry_output
               grep "DEP002" deptry_output | awk -F"'" '{print $2}' >> unused_dependencies.txt
             fi
+            cd $path || exit
           done
 
           cat unused_dependencies.txt
