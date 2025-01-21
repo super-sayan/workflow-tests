@@ -42,7 +42,7 @@ jobs:
       - name: Run Unused Dependency Check
         run: |
           path=$PWD
-          echo "Unused Dependencies:" > unused_dependencies.txt
+          echo "Unused Dependencies:" > "$path/unused_dependencies.txt"
           for dir in ${{ env.DEPENDENCY_DIRS }}; do
             echo "Checking for unused dependencies in $dir..."
             cd "$dir" || exit
