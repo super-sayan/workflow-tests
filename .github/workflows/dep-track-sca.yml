@@ -37,12 +37,33 @@ jobs:
           DEPENDENCY_DIRS=$(cat dependency_dirs.txt | tr '\n' ' ')
           echo "Found directories: $DEPENDENCY_DIRS"
           echo "DEPENDENCY_DIRS=$DEPENDENCY_DIRS" >> $GITHUB_ENV
-              
+       
+      - name: Install Dependencies
+        run: |
+          for dir in ./server ./client; do
+            echo "Installing dependencies in $dir"
+            cd "$dir" || exit
+            if [ -f "package.json" ]; then
+              echo "Installing Node.js dependencies..."
+              npm install
+            fi  # Close the if block for package.json
+  
+            if [ -f "requirements.txt" ]; then
+              echo "Installing Python dependencies..."
+              python -m pip install --upgrade pip
+              pip install -r requirements.txt
+            else
+              echo "No requirements.txt found, skipping..."
+            fi  # Close the if block for requirements.txt
+
+            cd - || exit
+          done             
+      
       # Running Dependecy Check to define unused dependencies and create txt of unused deps.
       - name: Run Unused Dependency Check
         run: |
           path=$PWD
-          echo "Unused Dependencies:" > "$path/unused_dependencies.txt"
+          echo "Unused Dependencies:" > unused_dependencies.txt
           for dir in ${{ env.DEPENDENCY_DIRS }}; do
             echo "Checking for unused dependencies in $dir..."
             cd "$dir" || exit
@@ -81,6 +102,7 @@ jobs:
             fi
             cd - || exit
           done
+
           cat unused_dependencies.txt
       
       # Generating SBOM using Trivy.
