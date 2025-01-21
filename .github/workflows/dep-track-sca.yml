@@ -126,7 +126,7 @@ jobs:
           
       - name: Wait for SBOM Analysis
         run: |
-          sleep 30
+          sleep 60
         
       # Getting uuid of Project, that we have created on the previous step.
       - name: Fetch Project ID
