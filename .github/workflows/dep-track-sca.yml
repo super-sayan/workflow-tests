@@ -7,6 +7,8 @@ env:
   DEPENDENCY_TRACK_BASE_URL: ${{ secrets.API_URL }} # URL of Dependency Track API server
   DEPENDENCY_TRACK_SHORT_URL: ${{ secrets.API_SURL }}
   PROJECT_NAME: ${{ github.repository }}
+  EPSS_WEIGHT: 1
+  CVSS_WEIGHT: 1
 
 jobs:
   code_analysis:
@@ -35,10 +37,11 @@ jobs:
           DEPENDENCY_DIRS=$(cat dependency_dirs.txt | tr '\n' ' ')
           echo "Found directories: $DEPENDENCY_DIRS"
           echo "DEPENDENCY_DIRS=$DEPENDENCY_DIRS" >> $GITHUB_ENV
-      
+              
       # Running Dependecy Check to define unused dependencies and create txt of unused deps.
       - name: Run Unused Dependency Check
         run: |
+          path=$PWD
           echo "Unused Dependencies:" > unused_dependencies.txt
           for dir in ${{ env.DEPENDENCY_DIRS }}; do
             echo "Checking for unused dependencies in $dir..."
@@ -46,13 +49,14 @@ jobs:
             if [ -f "package.json" ]; then
               echo "Running depcheck for Node.js..."
               output=$(npx depcheck || true)
-
+              
               # Parse and annotate unused dependencies.
               if echo "$output" | grep -q "Unused dependencies"; then
                 echo "$output" | sed -n '/Unused dependencies/,$p' | while IFS= read -r line; do
                   if [[ $line == "*"* ]]; then
                     dep=$(echo "$line" | sed -E 's/\* //; s/:.*$//')
-                    echo "$dep" >> ../unused_dependencies.txt
+                    cd $path
+                    echo "$dep" >> unused_dependencies.txt
                   fi
                 done
               fi
@@ -62,7 +66,8 @@ jobs:
                 echo "$output" | sed -n '/Unused devDependencies/,$p' | while IFS= read -r line; do
                   if [[ $line == "*"* ]]; then
                     dep=$(echo "$line" | sed -E 's/\* //; s/:.*$//')
-                    echo "$dep" >> ../unused_dependencies.txt
+                    cd $path
+                    echo "$dep" >> unused_dependencies.txt
                   fi
                 done
               fi
@@ -70,53 +75,22 @@ jobs:
               pip install deptry
               echo "Running deptry for Python..."
               deptry_output=$(deptry . 2>&1 || true)
-              echo "Deptry output:"
-              echo "$deptry_output"
+              cd $path
               echo "$deptry_output" > deptry_output
-              grep "DEP002" deptry_output | awk -F"'" '{print $2}' >> ../unused_dependencies.txt
+              grep "DEP002" deptry_output | awk -F"'" '{print $2}' >> unused_dependencies.txt
             fi
             cd - || exit
           done
 
           cat unused_dependencies.txt
       
-      # Installing Trivy for SBOM generation.
-      - name: Install Trivy for SBOM Generation
-        run: |
-          curl -sSL https://github.com/aquasecurity/trivy/releases/download/v0.58.0/trivy_0.58.0_Linux-64bit.tar.gz | sudo tar xz -C /usr/local/bin
-      
       # Generating SBOM using Trivy.
-      - name: Generate SBOM using Trivy
-        run: |
-          trivy fs --format cyclonedx --output sbom.json .
-           
-      # Remove unused dependecies from generated SBOM.
-      - name: Remove Unused Dependencies from SBOM
-        run: |
-          echo "Removing unused dependencies from SBOM"
-    
-          # Read unused dependencies into a list.
-          unused_deps=$(cat unused_dependencies.txt)
-    
-          # Convert the list into a JSON array of objects with `group` and `name`.
-          unused_json=$(echo "$unused_deps" | jq -R -s '
-            split("\n") | 
-            map(select(length > 0)) |
-            map(if test("^@") then 
-                  {group: (split("/")[0]), name: (split("/")[1])} 
-                else 
-                  {group: null, name: .} 
-                end)
-          ')
-
-          # Filter components, matching against both `group` and `name`.
-          jq --argjson unused "$unused_json" '
-            .components |= map(select(
-              .name as $name | 
-              .group as $group |
-              ($unused | map(.name == $name and .group == $group) | any) | not
-            ))
-          ' sbom.json > filtered_sbom.json
+      - name: Setup Trivy Action
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          scan-type: 'fs'
+          format: 'cyclonedx'
+          output: 'sbom.json'
            
       # An official Dependecy Track action for SBOM upload, doesn't work good with full URL of Dep Track Server.
       - name: Upload SBOM to Dependency Track
@@ -126,9 +100,13 @@ jobs:
           apiKey: ${{ env.DEPENDENCY_TRACK_API_KEY }}
           projectName: ${{ env.PROJECT_NAME }}
           projectVersion: '1.0.0'
-          bomFilename: "./filtered_sbom.json"
+          bomFilename: "./sbom.json"
           autoCreate: true
-
+          
+      - name: Wait for SBOM Analysis
+        run: |
+          sleep 30
+        
       # Getting uuid of Project, that we have created on the previous step.
       - name: Fetch Project ID
         id: fetch-project
@@ -232,36 +210,70 @@ jobs:
                               resolved = details.get("resolved", "")
                               if search_name in resolved:
                                   return lockfile_path.replace("./", "")
-                  except json.JSONDecodeError:
+                  except (json.JSONDecodeError, FileNotFoundError):
                       print(f"Failed to parse {lockfile_path}")
               return "unknown-lock"
               
-          def epss_score_to_level(epss_score):
+          def epss_score_to_severity(epss_score, cvss_score):
               """
-              Map EPSS score to SARIF alert levels.
+              This fucntion calculates a severity of cves based on their EPSS and CVSS scores.
               """
-              if epss_score < 0.001:
-                  return "note"
-              elif epss_score < 0.01:
-                  return "warning"
+              normalized_epss = 1
+              if epss_score > 0.6:
+                  normalized_epss = 5
+              elif epss_score > 0.3:
+                  normalized_epss = 4
+              elif epss_score > 0.1:
+                  normalized_epss = 3
+              elif epss_score >= 0.01:
+                  normalized_epss = 2
+              normalized_cvss = 1
+              if cvss_score >= 9.0:
+                  normalized_cvss = 5
+              elif cvss_score >= 7.0:
+                  normalized_cvss = 4
+              elif cvss_score >= 4.0:
+                  normalized_cvss = 3
+              elif cvss_score >= 0.1:
+                  normalized_cvss = 2
+              severity = round((${{ env.CVSS_WEIGHT }} * normalized_cvss + ${{ env.EPSS_WEIGHT }} * normalized_epss) / (${{ env.CVSS_WEIGHT }} + ${{ env.EPSS_WEIGHT }}))
+              if severity == 1:
+                  return "0"
+              elif severity == 2:
+                  return "2"
+              elif severity == 3:
+                  return "5"
+              elif severity == 4:
+                  return "8"
               else:
-                  return "error"
+                  return "10"
+              return str(severity*2)
                   
           def find_dependency_line(file_path, dependency_name):
               """
-              Find the line number of the dependency in the package.json file.
+              Find the line number of the dependency in a file, supporting both JSON and plain text formats.
               """
               try:
                   with open(file_path, "r") as file:
                       lines = file.readlines()
-                      for i, line in enumerate(lines, start=1):
-                          # Match the dependency name in a JSON line
-                          if re.search(f'"{re.escape(dependency_name)}"', line):
-                              return i
+            
+                      # Detect file format based on extension
+                      if file_path.endswith(('.json', '.lock')):  # JSON-based files
+                          for i, line in enumerate(lines, start=1):
+                              # Match the dependency name as a JSON key
+                              if re.search(f'"{re.escape(dependency_name)}"', line):
+                                  return i
+                      elif file_path.endswith('.txt'):  # Plain text files like requirements.txt
+                          for i, line in enumerate(lines, start=1):
+                              # Match the dependency name in the line (e.g., Flask==2.2.3 or Flask>=2.2.0)
+                              if re.match(f'^{re.escape(dependency_name)}([=><!].*)?$', line.strip(), re.IGNORECASE):
+                                  return i
               except FileNotFoundError:
                   print(f"File not found: {file_path}")
+              except json.JSONDecodeError:
+                  print(f"Failed to parse JSON in file: {file_path}")
               return 1  # Default to line 1 if not found
-    
+          
           def transform_epss_to_sarif(input_json_path, output_sarif_path):
               """
               Transform EPSS JSON into SARIF format.
@@ -287,7 +299,7 @@ jobs:
                               "driver": {
                                   "fullName": "OWASP Dependency Track",
                                   "informationUri": "https://dependency-track.org/",
-                                  "name": "Dependency-Track tests",
+                                  "name": "Dependency-Track",
                                   "rules": []
                               }
                           },
@@ -298,7 +310,11 @@ jobs:
           
               rules = []
               results = []
-          
+              
+              unused_deps = ""
+              with open("unused_dependencies.txt", "r") as file:
+                  unused_deps = file.read()
+                  
               for entry in epss_data:
                   component = entry["component"]
                   vulnerability = entry["vulnerability"]
@@ -309,8 +325,12 @@ jobs:
                   else:
                       file_path = find_dep_location(component["purl"])
                   epss_score = vulnerability.get("epssScore", 0)
-                  level = epss_score_to_level(epss_score)
-          
+                  cvss_score = vulnerability.get("cvssV3BaseScore", 0)
+                  severity = "0"
+                  usage = "unused dependency"
+                  if dep_name not in unused_deps: 
+                      severity = epss_score_to_severity(epss_score, cvss_score)
+                      usage = "dependency in use"
                   # Add rule if not already added
                   rule = {
                       "id": vulnerability["vulnId"],
@@ -319,33 +339,33 @@ jobs:
                           "text": vulnerability["description"]
                       },
                       "defaultConfiguration": {
-                          "level": level
+                          "level": "note"
                       },
                       "helpUri": f"https://nvd.nist.gov/vuln/detail/{vulnerability['vulnId']}",
                       "help": {
                           "text": (
                               f"Vulnerability {vulnerability['vulnId']}\n"
-                              f"Severity: {vulnerability['severity']}\n"
                               f"Package: {component['purl']}\n"
+                              f"cvssScore: {cvss_score}\n"
                               f"epssScore: {epss_score}\n"
                               f"Link: [CVE-{vulnerability['vulnId']}](https://nvd.nist.gov/vuln/detail/{vulnerability['vulnId']})\n"
                               f"{vulnerability['description']}"
                           ),
                           "markdown": (
                               f"**Vulnerability {vulnerability['vulnId']}**\n"
-                              f"| Severity | Package | epssScore | Link |\n"
+                              f"| Package | cvssScore | epssScore | Link |\n"
                               f"| --- | --- | --- | --- |\n"
-                              f"|{vulnerability['severity']}|{component['purl']}|{epss_score}|"
+                              f"|{component['purl']}|{cvss_score}|{epss_score}|"
                               f"[CVE-{vulnerability['vulnId']}](https://nvd.nist.gov/vuln/detail/{vulnerability['vulnId']})|\n\n"
                               f"{vulnerability['description']}"
                           )
                       },
                       "properties": {
-                          "security-severity": str(vulnerability.get("cvssV3BaseScore", 0)),
+                          "security-severity": severity,
                           "tags": [
                               "vulnerability",
                               "security",
-                              vulnerability["severity"]
+                              usage
                           ]
                       }
                   }
@@ -355,12 +375,12 @@ jobs:
                   # Add result
                   result = {
                       "ruleId": vulnerability["vulnId"],
-                      "level": level,
+                      "level": "note",
                       "message": {
                           "text": (
                               f"Vulnerability {vulnerability['vulnId']}\n"
-                              f"Severity: {vulnerability['severity']}\n"
                               f"Package: {component['purl']}\n"
+                              f"cvssScore: {cvss_score}\n"
                               f"epssScore: {epss_score}\n"
                               f"Link: [CVE-{vulnerability['vulnId']}](https://nvd.nist.gov/vuln/detail/{vulnerability['vulnId']})"
                           )
