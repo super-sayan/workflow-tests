@@ -12,7 +12,8 @@ jobs:
         run: pip install semgrep
 
       - name: Clone malicious-code-ruleset
-        run: git clone https://github.com/apiiro/malicious-code-ruleset.git
+        run: git clone https://github.com/super-sayan/malicious-code-ruleset.git
+       # run: git clone https://github.com/apiiro/malicious-code-ruleset.git
 
       - name: Run Semgrep with Ruleset and Output SARIF
         run: semgrep --config=malicious-code-ruleset --sarif --output=semgrep-results.sarif
